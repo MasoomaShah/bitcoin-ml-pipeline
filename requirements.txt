@@ -2,6 +2,9 @@ pandas
 numpy
 scikit-learn
 xgboost
+scipy
+pytest
+pytest-cov
 fastapi
 uvicorn
 python-multipart
