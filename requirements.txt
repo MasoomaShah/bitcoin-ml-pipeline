@@ -1,0 +1,11 @@
+pandas
+numpy
+scikit-learn
+xgboost
+fastapi
+uvicorn
+python-multipart
+psycopg2-binary
+deepchecks
+prefect
+requests

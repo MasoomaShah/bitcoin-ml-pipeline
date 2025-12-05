@@ -1,0 +1,10 @@
+[
+  "price",
+  "market_cap",
+  "volume",
+  "price_ma7",
+  "price_ma30",
+  "price_volatility",
+  "volume_ma7",
+  "momentum"
+]

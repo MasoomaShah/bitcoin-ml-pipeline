@@ -1,0 +1,62 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: mlproject-api:latest
+    container_name: mlproject_api
+    ports:
+      - '8000:8000'
+    volumes:
+      - ./models:/app/models:rw
+    environment:
+      - MODEL_RELOAD_TOKEN=${MODEL_RELOAD_TOKEN:-}
+      - DATABASE_URL=postgresql://postgres:password@db:5432/postgres
+    depends_on:
+      - db
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/" ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  db:
+    image: postgres:15
+    container_name: mlproject_db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: postgres
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    ports:
+      - '5432:5432'
+
+  # Optional Prefect service (comment/uncomment if you use Prefect flows locally)
+  prefect:
+    # This service is optional. It is placed under the 'prefect' profile so it
+    # will NOT be started by default when you run `docker compose up`.
+    # To start Prefect locally, run: `docker compose --profile prefect up --build`
+    image: prefecthq/prefect:latest
+    container_name: mlproject_prefect
+    command: ["prefect", "server", "start", "--host", "0.0.0.0"]
+    ports:
+      - '4200:4200'
+    volumes:
+      - ./:/app
+      - ./prefect:/app/prefect
+      - ./data:/app/data
+      - ./models:/app/models
+      - ./src:/app/src
+    working_dir: /app
+    environment:
+      - PREFECT_API_URL=http://prefect:4200/api
+      - DISCORD_WEBHOOK_URL=${DISCORD_WEBHOOK_URL:-}
+      - SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL:-}
+      - EMAIL_WEBHOOK_URL=${EMAIL_WEBHOOK_URL:-}
+      - PYTHONPATH=/app
+    profiles:
+      - prefect
+
+volumes:
+  db-data:

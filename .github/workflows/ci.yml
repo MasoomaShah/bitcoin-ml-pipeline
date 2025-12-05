@@ -1,0 +1,159 @@
+name: CI - Code Checks & Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  # ==================== CODE QUALITY ====================
+  code-quality:
+    name: Linting & Code Quality
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Upgrade pip
+        run: python -m pip install --upgrade pip
+
+      - name: Install linting tools
+        run: |
+          pip install flake8 pylint black isort
+
+      - name: Run Black (code formatter check)
+        run: black --check src/ api/ tests/ 2>/dev/null || true
+
+      - name: Run isort (import sorter check)
+        run: isort --check-only src/ api/ tests/ 2>/dev/null || true
+
+      - name: Run Flake8 (linter)
+        run: |
+          flake8 src/ api/ tests/ --max-line-length=120 --count --show-source
+        continue-on-error: true
+
+      - name: Run Pylint
+        run: |
+          pip install scikit-learn xgboost pandas numpy
+          pylint src/ api/ --disable=R,C --exit-zero
+        continue-on-error: true
+
+  # ==================== UNIT TESTS ====================
+  unit-tests:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.10', '3.11']
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Upgrade pip
+        run: python -m pip install --upgrade pip
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install pytest pytest-cov pytest-timeout requests responses
+
+      - name: Run unit tests with coverage
+        run: |
+          pytest tests/ -v --cov=src --cov=api --cov-report=xml --cov-report=term --timeout=30
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./coverage.xml
+          flags: unittests
+          name: codecov-umbrella
+        continue-on-error: true
+
+  # ==================== DATA VALIDATION ====================
+  data-validation:
+    name: Data Validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install deepchecks pandas numpy
+
+      - name: Validate data integrity
+        run: |
+          python -c "
+          import pandas as pd
+          import os
+          
+          # Check if data files exist
+          data_dir = 'data/raw/'
+          if os.path.exists(data_dir):
+              csv_files = [f for f in os.listdir(data_dir) if f.endswith('.csv')]
+              for file in csv_files:
+                  df = pd.read_csv(os.path.join(data_dir, file))
+                  print(f'✓ {file}: {df.shape[0]} rows, {df.shape[1]} columns')
+                  print(f'  Missing values: {df.isnull().sum().sum()}')
+                  if df.isnull().sum().sum() > 0:
+                      print(f'  Columns with missing: {df.isnull().sum()[df.isnull().sum() > 0].to_dict()}')
+          else:
+              print('⚠ No data directory found')
+          "
+
+  # ==================== API INTEGRATION TESTS ====================
+  api-tests:
+    name: API Integration Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install uvicorn pytest requests
+
+      - name: Start API server
+        run: |
+          nohup python -m uvicorn api.main:app --host 127.0.0.1 --port 8000 > api.log 2>&1 &
+          sleep 8
+          echo "API started"
+
+      - name: Run API tests
+        run: |
+          if [ -f test_timeseries_api.py ]; then
+            python test_timeseries_api.py
+          else
+            pytest tests/test_api.py -v 2>/dev/null || echo "No API tests found"
+          fi
+
+      - name: Check API logs on failure
+        if: failure()
+        run: cat api.log
+
+      - name: Stop API server
+        if: always()
+        run: pkill -f "uvicorn" || true

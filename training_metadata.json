@@ -1,0 +1,32 @@
+{
+  "domain": "World Bank - Economic Indicators",
+  "target": "GDP_growth (regression)",
+  "binary_target": "high_growth (classification, threshold=0.05)",
+  "features": [
+    "GDP",
+    "Population",
+    "Inflation",
+    "Unemployment",
+    "GDP_rolling3"
+  ],
+  "n_samples_train": 13,
+  "n_samples_test": 2,
+  "train_date_range": "2010-01-01T00:00:00.000000000 to 2022-01-01T00:00:00.000000000",
+  "test_date_range": "2023-01-01T00:00:00.000000000 to 2024-01-01T00:00:00.000000000",
+  "regression_metrics": {
+    "train_rmse": 0.053794164166746705,
+    "train_mae": 0.04317819937226402,
+    "train_r2": 0.44398661187459354,
+    "test_rmse": 0.10232720747308524,
+    "test_mae": 0.1018148070098563,
+    "test_r2": -0.017919293074955434
+  },
+  "classification_metrics": {
+    "train_accuracy": 1.0,
+    "train_precision": 1.0,
+    "train_recall": 1.0,
+    "test_accuracy": 0.5,
+    "test_precision": 0.5,
+    "test_recall": 1.0
+  }
+}
