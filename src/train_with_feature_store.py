@@ -114,7 +114,7 @@ def train_with_feature_store(
                 raise ValueError(f"No suitable price column found. Columns: {list(features_df.columns)}")
         
         price_change = (features_df[close_col].pct_change())
-        y = create_classification_target(price_change, threshold=0.01)
+        y = create_classification_target(price_change, threshold=0.005)  # Lower threshold for more balanced classes
         
         # Drop NaN and align (y is numpy array from create_classification_target)
         import pandas as pd
@@ -153,13 +153,24 @@ def train_with_feature_store(
     # ==== 4. TRAIN CLASSIFICATION MODEL ====
     print(f"\n4. Training Classification Model (Price Direction)...")
     clf_model = XGBClassifier(
-        max_depth=5,
-        n_estimators=100,
-        learning_rate=0.1,
-        random_state=42
+        max_depth=8,
+        n_estimators=500,
+        learning_rate=0.02,
+        min_child_weight=1,
+        gamma=0.3,
+        subsample=0.9,
+        colsample_bytree=0.9,
+        reg_alpha=0.01,
+        reg_lambda=2,
+        random_state=42,
+        eval_metric='logloss',
+        scale_pos_weight=1.0,
+        early_stopping_rounds=50
     )
     
-    clf_model.fit(X_train_scaled, y_train)
+    # Use early stopping with validation
+    eval_set = [(X_train_scaled, y_train), (X_test_scaled, y_test)]
+    clf_model.fit(X_train_scaled, y_train, eval_set=eval_set, verbose=False)
     clf_pred = clf_model.predict(X_test_scaled)
     
     clf_metrics = {
@@ -192,10 +203,17 @@ def train_with_feature_store(
         y_test_reg = y_test.astype(float)
     
     reg_model = XGBRegressor(
-        max_depth=5,
-        n_estimators=100,
-        learning_rate=0.1,
-        random_state=42
+        max_depth=7,
+        n_estimators=300,
+        learning_rate=0.03,
+        min_child_weight=2,
+        gamma=0.2,
+        subsample=0.85,
+        colsample_bytree=0.85,
+        reg_alpha=0.05,
+        reg_lambda=1.5,
+        random_state=42,
+        objective='reg:squarederror'
     )
     
     reg_model.fit(X_train_scaled, y_train_reg)
@@ -310,8 +328,8 @@ if __name__ == "__main__":
     parser.add_argument(
         '--test-size',
         type=float,
-        default=0.1,
-        help='Test set proportion (default: 0.1)'
+        default=0.2,
+        help='Test set proportion (default: 0.2)'
     )
     
     args = parser.parse_args()

@@ -1,5 +1,5 @@
 {
-  "active_version": "v20251205T052715Z",
+  "active_version": "v20251206T114817Z",
   "versions": {
     "v20251202T181703Z": {
       "reg_model": "models/v20251202T181703Z_reg_model.pkl",
@@ -187,6 +187,111 @@
         "accuracy": 0.7,
         "f1_score": 0.7032967032967032,
         "test_samples": 30
+      }
+    },
+    "v20251206T113241Z": {
+      "reg_model": "C:\\Users\\smaso\\OneDrive\\Desktop\\5th semester\\ML PROJECT\\models\\v20251206T113241Z_reg_model.pkl",
+      "clf_model": "C:\\Users\\smaso\\OneDrive\\Desktop\\5th semester\\ML PROJECT\\models\\v20251206T113241Z_clf_model.pkl",
+      "scaler": "C:\\Users\\smaso\\OneDrive\\Desktop\\5th semester\\ML PROJECT\\models\\v20251206T113241Z_scaler.pkl",
+      "feature_columns": "C:\\Users\\smaso\\OneDrive\\Desktop\\5th semester\\ML PROJECT\\models\\v20251206T113241Z_feature_columns.json",
+      "metadata": "C:\\Users\\smaso\\OneDrive\\Desktop\\5th semester\\ML PROJECT\\models\\v20251206T113241Z_training_metadata.json",
+      "created_at": "2025-12-06T11:32:42.900274Z",
+      "regression_metrics": {
+        "rmse": 0.5082003296279353,
+        "mae": 0.43562081214543935,
+        "r2": -0.03382546848382084,
+        "test_samples": 37
+      },
+      "classification_metrics": {
+        "accuracy": 0.5675675675675675,
+        "f1_score": 0.5675675675675675,
+        "precision": 0.5675675675675675,
+        "recall": 0.5675675675675675,
+        "test_samples": 37
+      }
+    },
+    "v20251206T114248Z": {
+      "reg_model": "models\\v20251206T114248Z_reg_model.pkl",
+      "clf_model": "models\\v20251206T114248Z_clf_model.pkl",
+      "scaler": "models\\v20251206T114248Z_scaler.pkl",
+      "feature_columns": "models\\v20251206T114248Z_feature_columns.json",
+      "metadata": "models\\v20251206T114248Z_training_metadata.json",
+      "created_at": "2025-12-06T11:42:53.386750Z",
+      "regression_metrics": {
+        "rmse": 0.4762472583734568,
+        "mae": 0.4003135596993505,
+        "r2": 0.09209100418955407,
+        "test_samples": 37
+      },
+      "classification_metrics": {
+        "accuracy": 0.6486486486486487,
+        "f1_score": 0.6481338481338482,
+        "precision": 0.6485691573926868,
+        "recall": 0.6486486486486487,
+        "test_samples": 37
+      }
+    },
+    "v20251206T114632Z": {
+      "reg_model": "models\\v20251206T114632Z_reg_model.pkl",
+      "clf_model": "models\\v20251206T114632Z_clf_model.pkl",
+      "scaler": "models\\v20251206T114632Z_scaler.pkl",
+      "feature_columns": "models\\v20251206T114632Z_feature_columns.json",
+      "metadata": "models\\v20251206T114632Z_training_metadata.json",
+      "created_at": "2025-12-06T11:46:34.190218Z",
+      "regression_metrics": {
+        "rmse": 0.4691462298165547,
+        "mae": 0.42842943478073625,
+        "r2": 0.11896369825134845,
+        "test_samples": 74
+      },
+      "classification_metrics": {
+        "accuracy": 0.6486486486486487,
+        "f1_score": 0.6481338481338482,
+        "precision": 0.6485691573926868,
+        "recall": 0.6486486486486487,
+        "test_samples": 74
+      }
+    },
+    "v20251206T114710Z": {
+      "reg_model": "models\\v20251206T114710Z_reg_model.pkl",
+      "clf_model": "models\\v20251206T114710Z_clf_model.pkl",
+      "scaler": "models\\v20251206T114710Z_scaler.pkl",
+      "feature_columns": "models\\v20251206T114710Z_feature_columns.json",
+      "metadata": "models\\v20251206T114710Z_training_metadata.json",
+      "created_at": "2025-12-06T11:47:15.390222Z",
+      "regression_metrics": {
+        "rmse": 0.49302072396930446,
+        "mae": 0.46398246016454053,
+        "r2": 0.02701153360718067,
+        "test_samples": 74
+      },
+      "classification_metrics": {
+        "accuracy": 0.6081081081081081,
+        "f1_score": 0.6055807050831927,
+        "precision": 0.608665679933497,
+        "recall": 0.6081081081081081,
+        "test_samples": 74
+      }
+    },
+    "v20251206T114817Z": {
+      "reg_model": "models\\v20251206T114817Z_reg_model.pkl",
+      "clf_model": "models\\v20251206T114817Z_clf_model.pkl",
+      "scaler": "models\\v20251206T114817Z_scaler.pkl",
+      "feature_columns": "models\\v20251206T114817Z_feature_columns.json",
+      "metadata": "models\\v20251206T114817Z_training_metadata.json",
+      "created_at": "2025-12-06T11:48:20.360260Z",
+      "regression_metrics": {
+        "rmse": 0.504357877746181,
+        "mae": 0.48159331171350045,
+        "r2": -0.01885472129097776,
+        "test_samples": 110
+      },
+      "classification_metrics": {
+        "accuracy": 0.5545454545454546,
+        "f1_score": 0.5258613311371105,
+        "precision": 0.5596927462781122,
+        "recall": 0.5545454545454546,
+        "test_samples": 110
       }
     }
   }

@@ -1,0 +1,27 @@
+{
+  "model_version": "v20251206T114248Z",
+  "created_at": "2025-12-06T11:42:53.386750Z",
+  "feature_store_used": false,
+  "n_features": 3,
+  "n_train_samples": 329,
+  "n_test_samples": 37,
+  "test_size": 0.1,
+  "classification_metrics": {
+    "accuracy": 0.6486486486486487,
+    "f1_score": 0.6481338481338482,
+    "precision": 0.6485691573926868,
+    "recall": 0.6486486486486487,
+    "test_samples": 37
+  },
+  "regression_metrics": {
+    "rmse": 0.4762472583734568,
+    "mae": 0.4003135596993505,
+    "r2": 0.09209100418955407,
+    "test_samples": 37
+  },
+  "feature_columns": [
+    "price",
+    "market_cap",
+    "volume"
+  ]
+}
