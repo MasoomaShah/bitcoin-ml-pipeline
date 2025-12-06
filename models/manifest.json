@@ -1,5 +1,5 @@
 {
-  "active_version": "v20251206T114817Z",
+  "active_version": "v20251206T115222Z",
   "versions": {
     "v20251202T181703Z": {
       "reg_model": "models/v20251202T181703Z_reg_model.pkl",
@@ -292,6 +292,51 @@
         "precision": 0.5596927462781122,
         "recall": 0.5545454545454546,
         "test_samples": 110
+      }
+    },
+    "v20251206T115122Z": {
+      "reg_model": "models\\v20251206T115122Z_reg_model.pkl",
+      "clf_model": "models\\v20251206T115122Z_clf_model.pkl",
+      "scaler": "models\\v20251206T115122Z_scaler.pkl",
+      "feature_columns": "models\\v20251206T115122Z_feature_columns.json",
+      "metadata": "models\\v20251206T115122Z_training_metadata.json",
+      "created_at": "2025-12-06T11:51:27.802963Z",
+      "regression_metrics": {
+        "rmse": 0.48895621279862206,
+        "mae": 0.4711525123071175,
+        "r2": 0.042988228862414046,
+        "test_samples": 74
+      },
+      "classification_metrics": {
+        "accuracy": 0.5405405405405406,
+        "f1_score": 0.5405405405405406,
+        "precision": 0.5405405405405406,
+        "recall": 0.5405405405405406,
+        "test_samples": 74
+      }
+    },
+    "v20251206T115222Z": {
+      "reg_model": "models\\v20251206T115222Z_reg_model.pkl",
+      "clf_model": "models\\v20251206T115222Z_clf_model.pkl",
+      "scaler": "models\\v20251206T115222Z_scaler.pkl",
+      "feature_columns": "models\\v20251206T115222Z_feature_columns.json",
+      "metadata": "models\\v20251206T115222Z_training_metadata.json",
+      "created_at": "2025-12-06T11:52:22.930296Z",
+      "regression_metrics": {
+        "train_rmse": 0.053794164166746705,
+        "train_mae": 0.04317819937226402,
+        "train_r2": 0.44398661187459354,
+        "test_rmse": 0.10232720747308524,
+        "test_mae": 0.1018148070098563,
+        "test_r2": -0.017919293074955434
+      },
+      "classification_metrics": {
+        "train_accuracy": 1.0,
+        "train_precision": 1.0,
+        "train_recall": 1.0,
+        "test_accuracy": 0.5,
+        "test_precision": 0.5,
+        "test_recall": 1.0
       }
     }
   }

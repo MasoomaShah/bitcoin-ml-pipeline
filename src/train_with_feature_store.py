@@ -12,7 +12,7 @@ import json
 from datetime import datetime
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
-from xgboost import XGBClassifier, XGBRegressor
+from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 
@@ -152,25 +152,19 @@ def train_with_feature_store(
     
     # ==== 4. TRAIN CLASSIFICATION MODEL ====
     print(f"\n4. Training Classification Model (Price Direction)...")
-    clf_model = XGBClassifier(
-        max_depth=8,
-        n_estimators=500,
-        learning_rate=0.02,
-        min_child_weight=1,
-        gamma=0.3,
-        subsample=0.9,
-        colsample_bytree=0.9,
-        reg_alpha=0.01,
-        reg_lambda=2,
+    clf_model = RandomForestClassifier(
+        n_estimators=200,
+        max_depth=15,
+        min_samples_split=4,
+        min_samples_leaf=2,
+        max_features='sqrt',
+        bootstrap=True,
         random_state=42,
-        eval_metric='logloss',
-        scale_pos_weight=1.0,
-        early_stopping_rounds=50
+        n_jobs=-1,
+        class_weight='balanced'
     )
     
-    # Use early stopping with validation
-    eval_set = [(X_train_scaled, y_train), (X_test_scaled, y_test)]
-    clf_model.fit(X_train_scaled, y_train, eval_set=eval_set, verbose=False)
+    clf_model.fit(X_train_scaled, y_train)
     clf_pred = clf_model.predict(X_test_scaled)
     
     clf_metrics = {
@@ -202,18 +196,15 @@ def train_with_feature_store(
         y_train_reg = y_train.astype(float)
         y_test_reg = y_test.astype(float)
     
-    reg_model = XGBRegressor(
-        max_depth=7,
-        n_estimators=300,
-        learning_rate=0.03,
-        min_child_weight=2,
-        gamma=0.2,
-        subsample=0.85,
-        colsample_bytree=0.85,
-        reg_alpha=0.05,
-        reg_lambda=1.5,
+    reg_model = RandomForestRegressor(
+        n_estimators=200,
+        max_depth=15,
+        min_samples_split=4,
+        min_samples_leaf=2,
+        max_features='sqrt',
+        bootstrap=True,
         random_state=42,
-        objective='reg:squarederror'
+        n_jobs=-1
     )
     
     reg_model.fit(X_train_scaled, y_train_reg)
