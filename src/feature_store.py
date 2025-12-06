@@ -8,10 +8,20 @@ import pandas as pd
 import numpy as np
 from datetime import datetime
 from typing import Dict, List, Optional, Tuple
-import hopsworks
-import hsfs
-from hsfs.feature_group import FeatureGroup
-from hsfs.feature_view import FeatureView
+
+# Optional imports - feature store will work without these
+try:
+    import hopsworks
+    import hsfs
+    from hsfs.feature_group import FeatureGroup
+    from hsfs.feature_view import FeatureView
+    HOPSWORKS_AVAILABLE = True
+except ImportError:
+    HOPSWORKS_AVAILABLE = False
+    print("⚠️ Hopsworks not installed. Feature store will use local computation.")
+    # Define dummy types for type hints
+    FeatureGroup = None
+    FeatureView = None
 
 
 class BitcoinFeatureStore:
@@ -50,6 +60,11 @@ class BitcoinFeatureStore:
         Returns:
             bool: True if connection successful
         """
+        if not HOPSWORKS_AVAILABLE:
+            print("✗ Hopsworks libraries not installed")
+            print("  Install with: pip install hopsworks hsfs")
+            return False
+            
         try:
             self.project = hopsworks.login(
                 api_key_value=self.api_key,

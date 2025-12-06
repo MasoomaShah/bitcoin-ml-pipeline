@@ -87,20 +87,51 @@ def train_with_feature_store(
     
     if not use_feature_store:
         print(f"\n1. Loading features from local data...")
-        from src.data_ingestion import fetch_bitcoin_data
-        from src.feature_engineering import engineer_features
+        from src.fetch_bitcoin_data import fetch_bitcoin_data
+        from src.preprocess_bitcoin import preprocess_bitcoin_data, create_classification_target
         
+        # Fetch data
         raw_data = fetch_bitcoin_data(days=365)
-        features_df = engineer_features(raw_data)
+        
+        # Preprocess
+        features_df, scaler_temp = preprocess_bitcoin_data(raw_data, drop_date=False)
         
         # Create binary target (price up/down)
-        if 'Close' in features_df.columns:
-            features_df['target'] = (features_df['Close'].shift(-1) > features_df['Close']).astype(int)
+        # Check for different possible column names
+        close_col = None
+        for col in ['Close', 'close', 'Close Price', 'price']:
+            if col in features_df.columns:
+                close_col = col
+                break
         
-        # Drop NaN and separate features/target
-        features_df = features_df.dropna()
-        y = features_df['target']
-        X = features_df.drop(['target'], axis=1)
+        if close_col is None:
+            # Use first numeric column as proxy
+            numeric_cols = features_df.select_dtypes(include=['float64', 'int64']).columns
+            if len(numeric_cols) > 0:
+                close_col = numeric_cols[0]
+                print(f"   ⚠️ Using '{close_col}' as price column")
+            else:
+                raise ValueError(f"No suitable price column found. Columns: {list(features_df.columns)}")
+        
+        price_change = (features_df[close_col].pct_change())
+        y = create_classification_target(price_change, threshold=0.01)
+        
+        # Drop NaN and align (y is numpy array from create_classification_target)
+        import pandas as pd
+        y_series = pd.Series(y, index=features_df.index)
+        valid_idx = ~(features_df.isna().any(axis=1) | y_series.isna())
+        X = features_df[valid_idx]
+        y = y_series[valid_idx].values
+        
+        # Drop date/datetime columns if exist
+        datetime_cols = X.select_dtypes(include=['datetime64', 'datetime', 'object']).columns
+        for col in ['Date', 'date', 'timestamp']:
+            if col in X.columns:
+                datetime_cols = datetime_cols.union([col])
+        
+        if len(datetime_cols) > 0:
+            print(f"   ⚠️ Dropping datetime columns: {list(datetime_cols)}")
+            X = X.drop(datetime_cols, axis=1)
         
         print(f"   ✓ Loaded {len(X)} samples with {len(X.columns)} features from local data")
     
