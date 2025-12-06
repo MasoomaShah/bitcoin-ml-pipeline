@@ -161,7 +161,7 @@ jobs:
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: daily-trained-models-${{ github.run_number }}
+          name: daily-trained-models
           path: models/
           retention-days: 60
 
@@ -183,7 +183,7 @@ jobs:
       - name: Download models
         uses: actions/download-artifact@v4
         with:
-          name: daily-trained-models-${{ github.run_number }}
+          name: daily-trained-models
           path: models/
 
       - name: Extract metrics
@@ -340,7 +340,8 @@ jobs:
     if: always()
     steps:
       - name: Remove artifacts older than 60 days
-        uses: kolpav/purge-artifacts-action@v1
+        uses: actions/delete-old-artifacts@v1
+        continue-on-error: true
         with:
-          token: ${{ github.token }}
-          expire-in: 60days
+          token: ${{ secrets.GITHUB_TOKEN }}
+          expire-in: 60
