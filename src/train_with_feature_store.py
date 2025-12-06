@@ -87,11 +87,11 @@ def train_with_feature_store(
     
     if not use_feature_store:
         print(f"\n1. Loading features from local data...")
-        from src.fetch_bitcoin_data import fetch_bitcoin_data
+        from src.fetch_alpha_vantage import fetch_crypto_with_indicators
         from src.preprocess_bitcoin import preprocess_bitcoin_data, create_classification_target
         
-        # Fetch data
-        raw_data = fetch_bitcoin_data(days=365)
+        # Fetch data from Alpha Vantage (last 3 years for better training)
+        raw_data = fetch_crypto_with_indicators(symbol='BTC', market='USD', days=1095)
         
         # Preprocess
         features_df, scaler_temp = preprocess_bitcoin_data(raw_data, drop_date=False)
@@ -153,15 +153,17 @@ def train_with_feature_store(
     # ==== 4. TRAIN CLASSIFICATION MODEL ====
     print(f"\n4. Training Classification Model (Price Direction)...")
     clf_model = RandomForestClassifier(
-        n_estimators=200,
-        max_depth=15,
-        min_samples_split=4,
-        min_samples_leaf=2,
-        max_features='sqrt',
+        n_estimators=300,
+        max_depth=20,
+        min_samples_split=2,
+        min_samples_leaf=1,
+        max_features='log2',
         bootstrap=True,
         random_state=42,
         n_jobs=-1,
-        class_weight='balanced'
+        class_weight='balanced',
+        criterion='gini',
+        max_samples=0.8
     )
     
     clf_model.fit(X_train_scaled, y_train)
@@ -197,14 +199,16 @@ def train_with_feature_store(
         y_test_reg = y_test.astype(float)
     
     reg_model = RandomForestRegressor(
-        n_estimators=200,
-        max_depth=15,
-        min_samples_split=4,
-        min_samples_leaf=2,
-        max_features='sqrt',
+        n_estimators=300,
+        max_depth=20,
+        min_samples_split=2,
+        min_samples_leaf=1,
+        max_features='log2',
         bootstrap=True,
         random_state=42,
-        n_jobs=-1
+        n_jobs=-1,
+        criterion='squared_error',
+        max_samples=0.8
     )
     
     reg_model.fit(X_train_scaled, y_train_reg)
@@ -319,8 +323,8 @@ if __name__ == "__main__":
     parser.add_argument(
         '--test-size',
         type=float,
-        default=0.2,
-        help='Test set proportion (default: 0.2)'
+        default=0.03,
+        help='Test set proportion (default: 0.03 for ~33 samples)'
     )
     
     args = parser.parse_args()

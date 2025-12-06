@@ -1,0 +1,48 @@
+{
+  "model_version": "v20251206T120411Z",
+  "created_at": "2025-12-06T12:04:16.241453Z",
+  "feature_store_used": false,
+  "n_features": 24,
+  "n_train_samples": 1062,
+  "n_test_samples": 33,
+  "test_size": 0.03,
+  "classification_metrics": {
+    "accuracy": 0.6363636363636364,
+    "f1_score": 0.5745454545454545,
+    "precision": 0.5987460815047022,
+    "recall": 0.6363636363636364,
+    "test_samples": 33
+  },
+  "regression_metrics": {
+    "rmse": 0.10446336600873034,
+    "mae": 0.08431242760442377,
+    "r2": -0.6451130837272026,
+    "test_samples": 33
+  },
+  "feature_columns": [
+    "Open",
+    "High",
+    "Low",
+    "Close",
+    "Volume",
+    "SMA_7",
+    "SMA_14",
+    "SMA_30",
+    "EMA_7",
+    "EMA_14",
+    "momentum_7",
+    "momentum_14",
+    "momentum_30",
+    "volatility_7",
+    "volatility_14",
+    "RSI",
+    "MACD",
+    "MACD_signal",
+    "BB_middle",
+    "BB_upper",
+    "BB_lower",
+    "BB_width",
+    "volume_SMA_7",
+    "volume_change"
+  ]
+}
