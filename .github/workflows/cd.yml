@@ -150,9 +150,13 @@ jobs:
               with open(manifest_path) as f:
                   manifest = json.load(f)
               print(f'✓ Manifest found: {len(manifest)} models registered')
-              if manifest and len(manifest) > 0:
-                  latest = manifest[-1]
-                  print(f'  Latest version: {latest}')
+              if manifest:
+                  # Manifest is a dict with version keys
+                  versions = list(manifest.keys())
+                  if versions:
+                      latest = versions[-1]
+                      print(f'  Latest version: {latest}')
+                      print(f'  Accuracy: {manifest[latest].get("accuracy", "N/A")}')
               else:
                   print('  No models in manifest yet')
           else:
