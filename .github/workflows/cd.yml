@@ -156,7 +156,9 @@ jobs:
                   if versions:
                       latest = versions[-1]
                       print(f'  Latest version: {latest}')
-                      print(f'  Accuracy: {manifest[latest].get("accuracy", "N/A")}')
+                      model_info = manifest[latest]
+                      acc = model_info.get('accuracy', 'N/A')
+                      print(f'  Accuracy: {acc}')
               else:
                   print('  No models in manifest yet')
           else:
