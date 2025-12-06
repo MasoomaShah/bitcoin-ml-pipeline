@@ -12,6 +12,6 @@ psycopg2-binary
 deepchecks
 prefect
 requests
-hopsworks
-hsfs
+# hopsworks  # Optional: Uncomment after creating Hopsworks account
+# hsfs       # Optional: Feature store integration
 great-expectations
