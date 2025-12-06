@@ -12,3 +12,6 @@ psycopg2-binary
 deepchecks
 prefect
 requests
+hopsworks
+hsfs
+great-expectations
