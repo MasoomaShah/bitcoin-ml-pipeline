@@ -80,8 +80,16 @@ def load_latest_model():
         with open(manifest_path, 'r') as f:
             manifest = json.load(f)
         
-        latest = manifest['models'][0]  # First model is latest
-        version = latest['version']
+        # Handle both old and new manifest formats
+        if 'models' in manifest:
+            # Old format
+            latest = manifest['models'][0]
+            version = latest['version']
+        elif 'active_version' in manifest:
+            # New format
+            version = manifest['active_version']
+        else:
+            return None, None, None, None, None
         
         # Load models and metadata
         clf_model = joblib.load(models_dir / f"{version}_clf_model.pkl")

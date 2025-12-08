@@ -19,6 +19,7 @@ import json
 from pathlib import Path
 from datetime import datetime
 import sys
+import os
 
 # Add src to path
 sys.path.append(str(Path(__file__).parent))
@@ -88,8 +89,16 @@ def load_models():
         with open(manifest_path, 'r') as f:
             manifest = json.load(f)
         
-        latest = manifest['models'][0]
-        version = latest['version']
+        # Handle both old and new manifest formats
+        if 'models' in manifest:
+            # Old format
+            latest = manifest['models'][0]
+            version = latest['version']
+        elif 'active_version' in manifest:
+            # New format
+            version = manifest['active_version']
+        else:
+            return False
         
         clf_model = joblib.load(models_dir / f"{version}_clf_model.pkl")
         reg_model = joblib.load(models_dir / f"{version}_reg_model.pkl")
@@ -126,6 +135,19 @@ def load_data():
             latest_file = max(feature_files, key=lambda x: x.stat().st_mtime)
             bitcoin_data = pd.read_csv(latest_file)
             return True
+        
+        # Try fetching fresh data if no files exist
+        print("  No data files found, fetching fresh data...")
+        try:
+            from src.fetch_alpha_vantage import fetch_crypto_with_indicators
+            from src.preprocess_bitcoin import preprocess_bitcoin_data
+            
+            df = fetch_crypto_with_indicators('BTC', 'USD', api_key=os.getenv('ALPHA_VANTAGE_API_KEY', 'demo'))
+            if df is not None and not df.empty:
+                bitcoin_data = preprocess_bitcoin_data(df)
+                return True
+        except:
+            pass
         
         return False
     
