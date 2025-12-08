@@ -1,5 +1,9 @@
 # ✅ CI/CD Pipeline - Implementation Complete
 
+**Last Updated**: December 8, 2025  
+**Status**: All workflows operational  
+**Recent Fixes**: scipy compatibility, scheduled training improvements
+
 ## 📋 What Has Been Implemented
 
 ### 🔄 Workflows Created (4 Total)
@@ -108,8 +112,26 @@
 
 ---
 
-#### 4. **Scheduled Training** (`.github/workflows/scheduled-training.yml`)
-**Purpose**: Automated daily model training at 2 AM UTC
+#### 4. **Hourly Features** (`.github/workflows/hourly-features.yml`) 🆕
+**Purpose**: Fetch Bitcoin features every hour (cron: `0 * * * *`)
+
+✅ **Fetch Hourly Features Job**
+- Runs every hour at minute 0
+- Fetches Bitcoin data from Alpha Vantage
+- Computes 24 technical indicators
+- Saves to `data/features/btc_features_TIMESTAMP.csv`
+- Creates JSON summary report
+- Uploads artifacts (7-day retention)
+- Optional: Commits to repository
+
+✅ **Notify Completion Job**
+- Checks job status
+- Reports success/failure
+
+---
+
+#### 5. **Scheduled Training** (`.github/workflows/scheduled-training.yml`)
+**Purpose**: Automated daily model training at 2 AM UTC (cron: `0 2 * * *`)
 
 ✅ **Fetch Daily Data Job**
 - Bitcoin data from CoinGecko API
