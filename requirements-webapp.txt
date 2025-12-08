@@ -1,0 +1,16 @@
+# Web App Dependencies
+
+# Streamlit for UI
+streamlit>=1.28.0
+plotly>=5.17.0
+
+# FastAPI for backend
+fastapi>=0.104.0
+uvicorn>=0.24.0
+pydantic>=2.4.0
+
+# Already in requirements.txt but needed for web app
+pandas>=2.1.0
+numpy>=1.24.0
+scikit-learn>=1.3.0
+joblib>=1.3.0
