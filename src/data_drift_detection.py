@@ -15,8 +15,7 @@ import warnings
 import numpy as np
 import pandas as pd
 from scipy import stats
-from scipy.spatial.distance import wasserstein_distance
-from scipy.stats import ks_2samp, chi2_contingency
+from scipy.stats import ks_2samp, chi2_contingency, wasserstein_distance
 
 warnings.filterwarnings('ignore')
 logging.basicConfig(level=logging.INFO)
