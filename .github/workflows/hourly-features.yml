@@ -1,0 +1,243 @@
+name: Hourly - Feature Data Collection
+
+on:
+  schedule:
+    # Run every hour at minute 0
+    - cron: '0 * * * *'
+  workflow_dispatch:  # Allow manual trigger for testing
+
+jobs:
+  fetch-hourly-features:
+    name: Fetch Bitcoin Features Every Hour
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install pandas requests alpha-vantage scikit-learn joblib numpy
+
+      - name: Set up environment variables
+        env:
+          ALPHA_VANTAGE_API_KEY: ${{ secrets.ALPHA_VANTAGE_API_KEY }}
+        run: |
+          echo "ALPHA_VANTAGE_API_KEY set"
+
+      - name: Fetch Bitcoin features
+        env:
+          ALPHA_VANTAGE_API_KEY: ${{ secrets.ALPHA_VANTAGE_API_KEY }}
+        run: |
+          python -c "
+          import os
+          import sys
+          import pandas as pd
+          from datetime import datetime
+          import json
+          
+          print('=' * 60)
+          print('HOURLY FEATURE COLLECTION')
+          print('=' * 60)
+          print(f'Timestamp: {datetime.utcnow().isoformat()}Z')
+          print()
+          
+          # Check if Alpha Vantage key exists
+          api_key = os.environ.get('ALPHA_VANTAGE_API_KEY')
+          if not api_key:
+              print('⚠️ ALPHA_VANTAGE_API_KEY not set')
+              print('Using mock data for testing...')
+              
+              # Create mock data
+              import numpy as np
+              dates = pd.date_range(end=datetime.now(), periods=100, freq='D')
+              mock_data = pd.DataFrame({
+                  'date': dates,
+                  'open': np.random.uniform(40000, 50000, 100),
+                  'high': np.random.uniform(50000, 55000, 100),
+                  'low': np.random.uniform(35000, 40000, 100),
+                  'close': np.random.uniform(40000, 50000, 100),
+                  'volume': np.random.uniform(1000000, 5000000, 100)
+              })
+              
+              # Add simple moving averages
+              mock_data['sma_7'] = mock_data['close'].rolling(7).mean()
+              mock_data['sma_14'] = mock_data['close'].rolling(14).mean()
+              mock_data['sma_30'] = mock_data['close'].rolling(30).mean()
+              
+              # Save
+              os.makedirs('data/features', exist_ok=True)
+              timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+              output_path = f'data/features/btc_features_{timestamp}.csv'
+              mock_data.to_csv(output_path, index=False)
+              
+              print(f'✓ Mock data saved: {output_path}')
+              print(f'  Records: {len(mock_data)}')
+              print(f'  Features: {list(mock_data.columns)}')
+              
+          else:
+              # Import real fetching code
+              sys.path.insert(0, '.')
+              
+              try:
+                  from src.fetch_alpha_vantage import fetch_crypto_with_indicators
+                  from src.preprocess_bitcoin import preprocess_bitcoin_data
+                  
+                  print('1. Fetching Bitcoin data from Alpha Vantage...')
+                  raw_data = fetch_crypto_with_indicators(symbol='BTC', market='USD', days=365)
+                  print(f'   ✓ Fetched {len(raw_data)} records')
+                  
+                  print('2. Computing technical indicators...')
+                  features_df, scaler = preprocess_bitcoin_data(raw_data, drop_date=False)
+                  print(f'   ✓ Generated {len(features_df.columns)} features')
+                  
+                  # Save features
+                  os.makedirs('data/features', exist_ok=True)
+                  timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+                  output_path = f'data/features/btc_features_{timestamp}.csv'
+                  features_df.to_csv(output_path, index=False)
+                  
+                  print(f'3. Saved features: {output_path}')
+                  print(f'   Records: {len(features_df)}')
+                  print(f'   Features: {list(features_df.columns)[:10]}...')
+                  
+                  # Create summary
+                  summary = {
+                      'timestamp': datetime.utcnow().isoformat() + 'Z',
+                      'records': len(features_df),
+                      'features': list(features_df.columns),
+                      'date_range': {
+                          'start': str(features_df['date'].min() if 'date' in features_df.columns else 'N/A'),
+                          'end': str(features_df['date'].max() if 'date' in features_df.columns else 'N/A')
+                      },
+                      'latest_price': float(features_df['close'].iloc[-1]) if 'close' in features_df.columns else None
+                  }
+                  
+                  summary_path = f'data/features/summary_{timestamp}.json'
+                  with open(summary_path, 'w') as f:
+                      json.dump(summary, f, indent=2)
+                  
+                  print(f'✓ Summary saved: {summary_path}')
+                  
+              except ImportError as e:
+                  print(f'⚠️ Import error: {e}')
+                  print('Creating simplified feature set...')
+                  
+                  # Fallback to simple API call
+                  import requests
+                  url = f'https://www.alphavantage.co/query'
+                  params = {
+                      'function': 'DIGITAL_CURRENCY_DAILY',
+                      'symbol': 'BTC',
+                      'market': 'USD',
+                      'apikey': api_key
+                  }
+                  
+                  response = requests.get(url, params=params, timeout=30)
+                  data = response.json()
+                  
+                  if 'Time Series (Digital Currency Daily)' in data:
+                      ts_data = data['Time Series (Digital Currency Daily)']
+                      
+                      records = []
+                      for date, values in list(ts_data.items())[:365]:
+                          records.append({
+                              'date': date,
+                              'open': float(values.get('1a. open (USD)', 0)),
+                              'high': float(values.get('2a. high (USD)', 0)),
+                              'low': float(values.get('3a. low (USD)', 0)),
+                              'close': float(values.get('4a. close (USD)', 0)),
+                              'volume': float(values.get('5. volume', 0))
+                          })
+                      
+                      df = pd.DataFrame(records)
+                      df = df.sort_values('date')
+                      
+                      # Add basic features
+                      df['sma_7'] = df['close'].rolling(7).mean()
+                      df['sma_14'] = df['close'].rolling(14).mean()
+                      df['returns'] = df['close'].pct_change()
+                      
+                      os.makedirs('data/features', exist_ok=True)
+                      timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+                      output_path = f'data/features/btc_features_{timestamp}.csv'
+                      df.to_csv(output_path, index=False)
+                      
+                      print(f'✓ Features saved: {output_path}')
+                      print(f'  Records: {len(df)}')
+                  else:
+                      print(f'✗ API Error: {data.get(\"Note\", data.get(\"Error Message\", \"Unknown error\"))}')
+                      exit(1)
+          
+          print()
+          print('=' * 60)
+          print('✓ HOURLY FEATURE COLLECTION COMPLETE')
+          print('=' * 60)
+          "
+
+      - name: Upload feature data
+        uses: actions/upload-artifact@v4
+        with:
+          name: hourly-features-${{ github.run_number }}
+          path: data/features/
+          retention-days: 7
+
+      - name: Create summary report
+        run: |
+          echo "## 📊 Hourly Feature Collection Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Timestamp:** $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ -d "data/features" ]; then
+            echo "**Files Created:**" >> $GITHUB_STEP_SUMMARY
+            ls -lh data/features/ | tail -n +2 | awk '{print "- " $9 " (" $5 ")"}' >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "✅ **Status:** Features collected successfully" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ **Status:** No feature files created" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Next Run:** $(date -u -d '+1 hour' '+%Y-%m-%d %H:00:00 UTC')" >> $GITHUB_STEP_SUMMARY
+
+      - name: Commit feature data (optional)
+        if: github.event_name == 'schedule'
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          
+          if [ -d "data/features" ]; then
+            git add data/features/ || true
+            
+            if git diff --staged --quiet; then
+              echo "No changes to commit"
+            else
+              git commit -m "chore: hourly feature update $(date -u '+%Y-%m-%d %H:%M UTC')" || true
+              # Uncomment to push changes:
+              # git push || true
+            fi
+          fi
+
+  notify-completion:
+    name: Notify Completion
+    runs-on: ubuntu-latest
+    needs: fetch-hourly-features
+    if: always()
+    
+    steps:
+      - name: Check job status
+        run: |
+          if [ "${{ needs.fetch-hourly-features.result }}" == "success" ]; then
+            echo "✅ Hourly feature collection completed successfully"
+          else
+            echo "❌ Hourly feature collection failed"
+            exit 1
+          fi
