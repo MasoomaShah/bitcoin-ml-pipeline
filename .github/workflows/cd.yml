@@ -304,15 +304,30 @@ jobs:
     if: always()
     needs: [build-container, train-model, validate-models, security-scan, deploy]
     steps:
+      - name: Check environment variables
+        run: |
+          echo "GitHub Workspace: ${{ github.workspace }}"
+          echo "GitHub Repository: ${{ github.repository }}"
+          echo "Run Number: ${{ github.run_number }}"
+          echo "Deploy Job Status: ${{ needs.deploy.result }}"
+          if [ -z "${{ secrets.DISCORD_WEBHOOK }}" ]; then
+            echo "❌ DISCORD_WEBHOOK secret is NOT set!"
+          else
+            echo "✅ DISCORD_WEBHOOK secret is set"
+          fi
+
       - name: Determine workflow status
         id: status
         run: |
+          echo "Checking deploy status: ${{ needs.deploy.result }}"
           if [ "${{ needs.deploy.result }}" == "success" ] || [ "${{ needs.deploy.result }}" == "skipped" ]; then
             echo "status=success" >> $GITHUB_OUTPUT
             echo "BUILD_SUCCESS=true" >> $GITHUB_OUTPUT
+            echo "✅ Setting status to success"
           else
             echo "status=failure" >> $GITHUB_OUTPUT
             echo "BUILD_SUCCESS=false" >> $GITHUB_OUTPUT
+            echo "❌ Setting status to failure"
           fi
 
       - name: Send Discord notification on CD success
@@ -352,4 +367,38 @@ jobs:
             Commit: ${{ github.sha }}
             Run: ${{ github.run_number }}
           color: 15158332
+        continue-on-error: true
+
+      - name: Manual fallback notification (if Discord action fails)
+        if: always()
+        run: |
+          if [ "${{ steps.status.outputs.BUILD_SUCCESS }}" == "true" ]; then
+            echo "Sending manual Discord notification..."
+            curl -X POST "${{ secrets.DISCORD_WEBHOOK }}" \
+              -H "Content-Type: application/json" \
+              -d '{
+                "username": "Bitcoin ML Pipeline",
+                "avatar_url": "https://bitcoin.org/img/icons/logo.png",
+                "embeds": [
+                  {
+                    "title": "✅ CD Pipeline Completed Successfully",
+                    "description": "Docker image built\nModels trained\nDeployment complete",
+                    "color": 3066993,
+                    "fields": [
+                      {
+                        "name": "Run",
+                        "value": "${{ github.run_number }}",
+                        "inline": true
+                      },
+                      {
+                        "name": "Commit",
+                        "value": "${{ github.sha }}",
+                        "inline": true
+                      }
+                    ],
+                    "timestamp": "'$(date -u +%Y-%m-%dT%H:%M:%SZ)'"
+                  }
+                ]
+              }' || echo "Manual notification failed (but continuing)"
+          fi
         continue-on-error: true
