@@ -1,0 +1,262 @@
+\appendix
+
+\chapter{Code Snippets \& Implementation Examples}
+\label{appendix:code}
+
+\section{Feature Engineering Implementation}
+
+\begin{lstlisting}[language=Python, caption={Technical Indicator Calculation}]
+def add_technical_indicators(df):
+    """Compute 24 technical indicators from OHLCV data"""
+    df = df.copy()
+    
+    # Moving Averages
+    df['SMA_7'] = df['price'].rolling(7).mean()
+    df['SMA_14'] = df['price'].rolling(14).mean()
+    df['SMA_30'] = df['price'].rolling(30).mean()
+    df['EMA_7'] = df['price'].ewm(span=7).mean()
+    df['EMA_14'] = df['price'].ewm(span=14).mean()
+    
+    # Momentum
+    df['RSI'] = compute_rsi(df['price'], 14)
+    df['MACD'], df['Signal'] = compute_macd(df['price'])
+    df['Momentum_3d'] = df['price'].diff(3)
+    df['Momentum_7d'] = df['price'].diff(7)
+    df['Momentum_14d'] = df['price'].diff(14)
+    
+    # Volatility
+    df['BB_Upper'], df['BB_Lower'] = compute_bollinger(df['price'], 20, 2)
+    df['Volatility_3d'] = df['price'].rolling(3).std()
+    df['Volatility_7d'] = df['price'].rolling(7).std()
+    df['Volatility_14d'] = df['price'].rolling(14).std()
+    
+    # Volume indicators
+    df['Vol_SMA'] = df['volume'].rolling(20).mean()
+    df['Vol_Change'] = df['volume'].pct_change()
+    df['Vol_Market_Cap'] = df['volume'] / df['market_cap']
+    
+    # Price ratios
+    df['Price_SMA7'] = df['price'] / df['SMA_7']
+    df['Price_SMA14'] = df['price'] / df['SMA_14']
+    df['Price_SMA30'] = df['price'] / df['SMA_30']
+    
+    # Market cap
+    df['Market_Cap_Change'] = df['market_cap'].pct_change()
+    
+    return df
+\end{lstlisting}
+
+\section{Model Training with Scikit-learn}
+
+\begin{lstlisting}[language=Python, caption={Classification Model Training}]
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.model_selection import GridSearchCV
+from sklearn.metrics import accuracy_score, f1_score
+
+def train_random_forest(X_train, X_test, y_train, y_test):
+    """Train optimized Random Forest classifier"""
+    
+    # Define parameter grid
+    param_grid = {
+        'n_estimators': [50, 100, 200],
+        'max_depth': [5, 10, 15],
+        'min_samples_split': [2, 5, 10],
+        'min_samples_leaf': [1, 2, 4],
+    }
+    
+    # Grid search
+    rf = RandomForestClassifier(random_state=42)
+    grid_search = GridSearchCV(
+        rf, param_grid, cv=5, 
+        scoring='f1', n_jobs=-1
+    )
+    grid_search.fit(X_train, y_train)
+    
+    # Evaluate
+    best_model = grid_search.best_estimator_
+    y_pred = best_model.predict(X_test)
+    
+    metrics = {
+        'accuracy': accuracy_score(y_test, y_pred),
+        'f1': f1_score(y_test, y_pred),
+        'best_params': grid_search.best_params_
+    }
+    
+    return best_model, metrics
+\end{lstlisting}
+
+\section{FastAPI Endpoint Implementation}
+
+\begin{lstlisting}[language=Python, caption={FastAPI Prediction Endpoint}]
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
+import joblib
+
+app = FastAPI(title="Bitcoin ML API")
+
+class PredictionRequest(BaseModel):
+    features: list[float]
+
+@app.get("/")
+async def health_check():
+    return {"status": "healthy", "model": "v20251205T052715Z"}
+
+@app.post("/predict/classification")
+async def predict_direction(request: PredictionRequest):
+    """Predict Bitcoin price direction (UP/DOWN)"""
+    try:
+        # Load model
+        model = joblib.load("models/v20251205T052715Z_clf_model.pkl")
+        scaler = joblib.load("models/v20251205T052715Z_scaler.pkl")
+        
+        # Preprocess
+        X = scaler.transform([request.features])
+        
+        # Predict
+        prediction = model.predict(X)[0]
+        confidence = model.predict_proba(X)[0].max()
+        
+        return {
+            "direction": "UP" if prediction == 1 else "DOWN",
+            "confidence": float(confidence),
+            "timestamp": datetime.now().isoformat()
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/predict/regression")
+async def predict_price(request: PredictionRequest):
+    """Predict Bitcoin price change percentage"""
+    try:
+        model = joblib.load("models/v20251205T052715Z_reg_model.pkl")
+        scaler = joblib.load("models/v20251205T052715Z_scaler.pkl")
+        
+        X = scaler.transform([request.features])
+        prediction = model.predict(X)[0]
+        
+        return {
+            "price_change_pct": float(prediction),
+            "timestamp": datetime.now().isoformat()
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+\end{lstlisting}
+
+\section{Docker Multi-Stage Build}
+
+\begin{lstlisting}[language=Dockerfile, caption={Optimized Dockerfile}]
+# Stage 1: Builder
+FROM python:3.11-slim AS builder
+
+WORKDIR /app
+RUN python -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+COPY requirements.txt .
+RUN pip install --upgrade pip && \
+    pip install -r requirements.txt
+
+# Stage 2: Runtime  
+FROM python:3.11-slim
+
+WORKDIR /app
+COPY --from=builder /opt/venv /opt/venv
+COPY . /app
+
+ENV PATH="/opt/venv/bin:$PATH"
+ENV PYTHONUNBUFFERED=1
+
+EXPOSE 8000
+
+HEALTHCHECK --interval=30s --timeout=10s CMD \
+    curl -f http://localhost:8000/ || exit 1
+
+CMD ["uvicorn", "api.main:app", "--host", "0.0.0.0"]
+\end{lstlisting}
+
+\section{Prefect Task Definition}
+
+\begin{lstlisting}[language=Python, caption={Prefect Task with Error Handling}]
+from prefect import task, get_run_logger
+import requests
+
+@task(
+    retries=3,
+    retry_delay_seconds=30,
+    timeout_seconds=300,
+    name="Fetch Bitcoin Data"
+)
+def fetch_bitcoin_task(days: int = 365) -> pd.DataFrame:
+    """Fetch Bitcoin data from CoinGecko with error handling"""
+    logger = get_run_logger()
+    
+    try:
+        logger.info(f"Fetching {days} days of Bitcoin data...")
+        
+        url = "https://api.coingecko.com/api/v3/coins/bitcoin/market_chart"
+        params = {
+            "vs_currency": "usd",
+            "days": days,
+            "interval": "daily"
+        }
+        
+        response = requests.get(url, params=params, timeout=60)
+        response.raise_for_status()
+        
+        data = response.json()
+        
+        df = pd.DataFrame({
+            'date': [datetime.fromtimestamp(p[0]/1000) for p in data['prices']],
+            'price': [p[1] for p in data['prices']],
+            'market_cap': [m[1] for m in data['market_caps']],
+            'volume': [v[1] for v in data['volumes']]
+        })
+        
+        logger.info(f"✓ Successfully fetched {len(df)} records")
+        return df
+        
+    except requests.exceptions.Timeout:
+        logger.error("API request timed out - will retry")
+        raise
+    except requests.exceptions.ConnectionError as e:
+        logger.error(f"Connection failed: {e} - will retry")
+        raise
+    except Exception as e:
+        logger.error(f"Unexpected error: {e}")
+        raise
+\end{lstlisting}
+
+\section{SHAP Explainability}
+
+\begin{lstlisting}[language=Python, caption={SHAP Model Explanation}]
+import shap
+
+def explain_prediction(model, X_test, feature_names):
+    """Generate SHAP explanations for predictions"""
+    
+    # Create explainer
+    explainer = shap.TreeExplainer(model)
+    shap_values = explainer.shap_values(X_test)
+    
+    # Global feature importance
+    shap.summary_plot(
+        shap_values, 
+        X_test, 
+        feature_names=feature_names,
+        plot_type="bar"
+    )
+    plt.title("Global Feature Importance (SHAP)")
+    plt.show()
+    
+    # Local explanation for single prediction
+    instance_idx = 0
+    shap.force_plot(
+        explainer.expected_value,
+        shap_values[instance_idx],
+        X_test.iloc[instance_idx],
+        feature_names=feature_names
+    )
+    
+    return shap_values
+\end{lstlisting}
+

@@ -1,0 +1,124 @@
+\documentclass[10pt,conference,a4paper]{IEEEtran}
+\usepackage[utf8]{inputenc}
+\usepackage[a4paper, margin=1in]{geometry}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{tikz}
+\usepackage{pgfplots}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{cite}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{multirow}
+\usepackage[font=small,labelfont=bf]{caption}
+\usepackage{float}
+\usepackage{wrapfig}
+\usepackage{color}
+
+% Code highlighting
+\lstset{
+    language=Python,
+    basicstyle=\ttfamily\small,
+    breaklines=true,
+    prebreak=\raisebox{0ex}[0ex][0ex]{\ensuremath{\hookleftarrow}},
+    frame=single,
+    numbers=left,
+    numberstyle=\tiny,
+    keywordstyle=\color{blue},
+    commentstyle=\color{gray},
+    stringstyle=\color{red},
+    backgroundcolor=\color{lightgray!10},
+    identifierstyle=\color{black}
+}
+
+% Title page
+\title{Bitcoin Price Prediction: A Comprehensive Machine Learning Pipeline with CI/CD Automation}
+
+\author{
+    Masooma Shah\\
+    Department of Computer Science\\
+    5th Semester Project
+}
+
+\begin{document}
+
+\maketitle
+
+% Abstract
+\begin{abstract}
+This paper presents a comprehensive machine learning pipeline for Bitcoin price prediction, integrating multiple predictive models with industrial-grade DevOps practices. The system encompasses 14+ machine learning models across multiple paradigms (classification, regression, deep learning, time-series forecasting), achieving 70\% classification accuracy with R² = 0.483 for regression tasks. We demonstrate end-to-end ML engineering best practices including automated feature engineering (24 technical indicators), continuous integration/continuous deployment (5 GitHub Actions workflows), container orchestration (Docker, Docker Compose), and workflow automation (Prefect 2.0). The production-ready system operates at sub-100ms inference latency with automated hourly feature updates and daily model retraining. This work serves as a reference implementation for deploying machine learning systems in production environments with robust monitoring, observability, and fault tolerance mechanisms.
+\end{abstract}
+
+\section*{Index Terms}
+Bitcoin forecasting, machine learning pipeline, CI/CD automation, workflow orchestration, containerization, cryptocurrency prediction
+
+
+% Chapters (converted to sections for IEEE format)
+\section{Introduction}
+\input{chapters/1_introduction.tex}
+
+\section{Machine Learning Experiments and Comparison}
+\input{chapters/2_ml_experiments.tex}
+
+\section{System Architecture}
+\input{chapters/3_system_architecture.tex}
+
+\section{Containerization Workflow}
+\input{chapters/4_containerization.tex}
+
+\section{CI/CD Pipeline and Automation}
+\input{chapters/5_cicd_pipeline.tex}
+
+\section{Prefect Workflow Orchestration}
+\input{chapters/6_prefect_orchestration.tex}
+
+\section{Methodology and Complete Pipeline Flow}
+\input{chapters/7_methodology_flow.tex}
+
+\section{Conclusions and Future Work}
+\input{chapters/8_conclusions.tex}
+
+% References (IEEE style)
+\begin{thebibliography}{99}
+
+\bibitem{sklearn} F. Pedregosa, et al., ``Scikit-learn: Machine learning in Python,'' \textit{J. Mach. Learn. Res.}, vol. 12, no. 85, pp. 2825--2830, 2011.
+
+\bibitem{tensorflow} M. Abadi, et al., ``TensorFlow: Large-scale machine learning on heterogeneous distributed systems,'' \textit{arXiv preprint arXiv:1605.08695}, 2016.
+
+\bibitem{github_actions} GitHub Inc., ``GitHub Actions Documentation,'' \textit{GitHub}, 2024. [Online]. Available: https://docs.github.com/en/actions
+
+\bibitem{docker} Docker Inc., ``Docker Documentation,'' \textit{Docker}, 2024. [Online]. Available: https://docs.docker.com
+
+\bibitem{prefect} Prefect Technologies, ``Prefect Workflow Orchestration,'' 2024. [Online]. Available: https://www.prefect.io/
+
+\bibitem{fastapi} S. Ramírez, ``FastAPI - Modern Python Web Framework,'' 2024. [Online]. Available: https://fastapi.tiangolo.com/
+
+\bibitem{streamlit} Streamlit, ``Streamlit Documentation,'' 2024. [Online]. Available: https://docs.streamlit.io/
+
+\bibitem{prophet} S. J. Taylor and B. Letham, ``Forecasting at scale,'' \textit{The American Statistician}, vol. 72, no. 1, pp. 37--45, 2018.
+
+\bibitem{shap} S. M. Lundberg and S. I. Lee, ``A unified approach to interpreting model predictions,'' in \textit{Advances in Neural Information Processing Systems}, vol. 30, 2017.
+
+\bibitem{coingecko} CoinGecko API, ``Cryptocurrency Data API,'' 2024. [Online]. Available: https://www.coingecko.com/en/api
+
+\bibitem{bitcoin} S. Nakamoto, ``Bitcoin: A peer-to-peer electronic cash system,'' \textit{Bitcoin Whitepaper}, Oct. 2008.
+
+\bibitem{arima} G. E. Box and G. M. Jenkins, \textit{Time Series Analysis: Forecasting and Control}. San Francisco: Holden-Day, 1970.
+
+\end{thebibliography}
+
+% Appendices
+\appendix
+
+\section{Code Snippets and Implementation Examples}
+\input{chapters/appendix_a.tex}
+
+\section{Configuration Files and Deployment Manifests}
+\input{chapters/appendix_b.tex}
+
+\end{document}

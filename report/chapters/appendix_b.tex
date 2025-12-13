@@ -1,0 +1,418 @@
+\chapter{Configuration Files \& Automation Setup}
+\label{appendix:config}
+
+\section{Docker Compose Configuration}
+
+\begin{lstlisting}[language=yaml, caption={Complete docker-compose.yml}]
+version: '3.8'
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    container_name: bitcoin_ml_api
+    ports:
+      - "8000:8000"
+    environment:
+      - MODEL_PATH=/app/models
+      - LOG_LEVEL=INFO
+      - DATABASE_URL=postgresql://ml_user:ml_password@db:5432/bitcoin_ml
+    volumes:
+      - ./models:/app/models
+      - ./data:/app/data
+    depends_on:
+      - db
+    networks:
+      - ml-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile.streamlit
+    container_name: bitcoin_ml_dashboard
+    ports:
+      - "8501:8501"
+    environment:
+      - API_URL=http://api:8000
+      - STREAMLIT_SERVER_PORT=8501
+    depends_on:
+      - api
+    volumes:
+      - ./data:/app/data
+    networks:
+      - ml-network
+    restart: unless-stopped
+
+  db:
+    image: postgres:15-alpine
+    container_name: bitcoin_ml_db
+    environment:
+      POSTGRES_USER: ml_user
+      POSTGRES_PASSWORD: ml_password
+      POSTGRES_DB: bitcoin_ml
+      POSTGRES_INITDB_ARGS: "-E UTF8"
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - ml-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ml_user"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  prefect:
+    image: prefecthq/prefect:2.10-python3.11
+    container_name: bitcoin_ml_prefect
+    ports:
+      - "4200:4200"
+    command: prefect server start --host 0.0.0.0
+    environment:
+      - PREFECT_API_URL=http://prefect:4200/api
+    volumes:
+      - ./prefect:/root/.prefect
+      - prefect_data:/root/.prefect/data
+    networks:
+      - ml-network
+    restart: unless-stopped
+
+volumes:
+  db_data:
+    driver: local
+  prefect_data:
+    driver: local
+
+networks:
+  ml-network:
+    driver: bridge
+\end{lstlisting}
+
+\section{GitHub Actions Workflow}
+
+\begin{lstlisting}[language=yaml, caption={Daily Training Workflow (.github/workflows/scheduled-training.yml)}]
+name: Scheduled Daily Training
+
+on:
+  schedule:
+    - cron: '0 2 * * *'  # 2 AM UTC daily
+  workflow_dispatch:  # Manual trigger
+
+jobs:
+  fetch-data:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      
+      - name: Fetch latest Bitcoin data
+        run: |
+          python src/fetch_bitcoin_data.py
+      
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: daily-bitcoin-data
+          path: data/raw/bitcoin_timeseries.csv
+          retention-days: 30
+
+  train:
+    needs: fetch-data
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      
+      - name: Download data
+        uses: actions/download-artifact@v3
+        with:
+          name: daily-bitcoin-data
+      
+      - name: Train models
+        run: |
+          python src/train_all_models.py
+      
+      - name: Upload models
+        uses: actions/upload-artifact@v3
+        with:
+          name: trained-models
+          path: models/
+          retention-days: 30
+
+  notify:
+    needs: train
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Send Discord notification
+        if: success()
+        uses: sarisia/actions-status-discord@v1
+        with:
+          webhook_url: \${{ secrets.DISCORD_WEBHOOK }}
+          status: \${{ job.status }}
+          title: "Daily Bitcoin ML Training"
+          description: "✅ Models trained and deployed successfully"
+          
+      - name: Send Discord error
+        if: failure()
+        uses: sarisia/actions-status-discord@v1
+        with:
+          webhook_url: \${{ secrets.DISCORD_WEBHOOK }}
+          status: "failure"
+          title: "Daily Bitcoin ML Training"
+          description: "❌ Training failed - check logs"
+\end{lstlisting}
+
+\section{Prefect Deployment Configuration}
+
+\begin{lstlisting}[language=yaml, caption={Prefect deployment.yaml}]
+deployments:
+  - name: bitcoin-ml-daily
+    description: Daily model retraining with latest Bitcoin data
+    version: 1.0.0
+    tags:
+      - production
+      - daily
+    schedule:
+      cron: "0 2 * * *"
+      timezone: UTC
+    parameters:
+      data_path: data/raw/bitcoin_timeseries.csv
+      epochs: 100
+      batch_size: 32
+    work_queue_name: default
+    work_pool_name: null
+    
+  - name: bitcoin-ml-manual
+    description: Manual execution (triggered via API or CLI)
+    version: 1.0.0
+    tags:
+      - manual
+    schedule: null
+    parameters:
+      data_path: data/raw/bitcoin_timeseries.csv
+      epochs: 100
+      batch_size: 32
+    work_queue_name: default
+
+pull_requests:
+  - source: "*.yml"
+    exclude: ^\.github
+\end{lstlisting}
+
+\section{Requirements.txt}
+
+\begin{lstlisting}[caption={Complete Python Dependencies}]
+# Core ML
+scikit-learn==1.3.2
+tensorflow==2.13.0
+xgboost==2.0.0
+catboost==1.2.2
+lightgbm==4.0.0
+
+# Time Series
+statsmodels==0.14.0
+prophet==1.1.4
+
+# Data
+pandas==2.1.3
+numpy==1.24.3
+scipy==1.11.4
+
+# API & Web
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+streamlit==1.29.0
+plotly==5.18.0
+
+# Features & Explanation
+shap==0.42.1
+lime==0.2.0
+feature-engine==1.6.1
+
+# Orchestration
+prefect==2.13.8
+prefect-gcp==0.3.1
+
+# Monitoring & Logging
+prometheus-client==0.18.0
+python-json-logger==2.0.7
+
+# Database
+sqlalchemy==2.0.23
+psycopg2-binary==2.9.9
+
+# Cloud
+google-cloud-storage==2.10.0
+google-cloud-aiplatform==1.38.0
+
+# Utilities
+requests==2.31.0
+python-dotenv==1.0.0
+pydantic==2.5.0
+pydantic-settings==2.1.0
+
+# Development
+pytest==7.4.3
+pytest-cov==4.1.0
+black==23.12.0
+flake8==6.1.0
+isort==5.13.2
+pylint==3.0.3
+\end{lstlisting}
+
+\section{Environment Configuration}
+
+\begin{lstlisting}[caption={.env Template}]
+# API Configuration
+API_HOST=0.0.0.0
+API_PORT=8000
+LOG_LEVEL=INFO
+
+# Model Configuration
+MODEL_PATH=models/
+MODEL_VERSION=v20251205T052715Z
+
+# Database
+DATABASE_URL=postgresql://ml_user:ml_password@localhost:5432/bitcoin_ml
+
+# Feature Store (Hopsworks)
+HOPSWORKS_PROJECT=bitcoin_ml_pipeline
+HOPSWORKS_API_KEY=your_api_key_here
+
+# Cloud (GCP)
+GCP_PROJECT_ID=ml-project-480417
+GCP_REGION=us-central1
+
+# Prefect
+PREFECT_API_URL=http://localhost:4200/api
+
+# Notifications
+DISCORD_WEBHOOK_URL=https://discordapp.com/api/webhooks/...
+
+# External APIs
+COINGECKO_API_URL=https://api.coingecko.com/api/v3
+ALPHA_VANTAGE_API_KEY=your_key_here
+\end{lstlisting}
+
+\section{Model Registry Manifest}
+
+\begin{lstlisting}[language=json, caption={models/manifest.json Structure}]
+{
+  "active_version": "v20251205T052715Z",
+  "metadata": {
+    "project": "Bitcoin ML Pipeline",
+    "domain": "Cryptocurrency Price Prediction",
+    "created_date": "2025-12-10",
+    "author": "Masooma Shah"
+  },
+  "versions": {
+    "v20251205T052715Z": {
+      "status": "ACTIVE",
+      "created_at": "2025-12-05T07:27:15Z",
+      "artifacts": {
+        "clf_model": "models/v20251205T052715Z_clf_model.pkl",
+        "reg_model": "models/v20251205T052715Z_reg_model.pkl",
+        "scaler": "models/v20251205T052715Z_scaler.pkl",
+        "feature_columns": "models/v20251205T052715Z_feature_columns.json",
+        "metadata": "models/v20251205T052715Z_training_metadata.json"
+      },
+      "training_data": {
+        "samples": 3492,
+        "features": 24,
+        "date_range": "2021-01-01 to 2025-12-05"
+      },
+      "performance": {
+        "classification": {
+          "accuracy": 0.70,
+          "f1_score": 0.703,
+          "precision": 0.703,
+          "recall": 0.700
+        },
+        "regression": {
+          "rmse": 2.8,
+          "mae": 2.1,
+          "r2_score": 0.128
+        }
+      }
+    },
+    "v20251205T051419Z": {
+      "status": "ARCHIVED",
+      "created_at": "2025-12-05T05:14:19Z"
+    }
+  }
+}
+\end{lstlisting}
+
+\section{Monitoring \& Alerting Configuration}
+
+\begin{lstlisting}[language=python, caption={Discord Notification Function}]
+import requests
+from datetime import datetime
+
+def send_discord_notification(
+    webhook_url: str,
+    title: str,
+    description: str,
+    metrics: dict = None,
+    status: str = "info"
+):
+    """Send notification to Discord webhook"""
+    
+    color_map = {
+        "success": 3066993,  # Green
+        "warning": 15158332,  # Orange
+        "error": 15158332,    # Red
+        "info": 3447003       # Blue
+    }
+    
+    embed = {
+        "title": title,
+        "description": description,
+        "color": color_map.get(status, 3447003),
+        "timestamp": datetime.now().isoformat() + "Z"
+    }
+    
+    if metrics:
+        for key, value in metrics.items():
+            embed.setdefault("fields", []).append({
+                "name": key,
+                "value": str(value),
+                "inline": True
+            })
+    
+    payload = {"embeds": [embed]}
+    
+    response = requests.post(webhook_url, json=payload)
+    return response.status_code == 204
+\end{lstlisting}
+

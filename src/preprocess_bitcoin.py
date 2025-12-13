@@ -52,8 +52,11 @@ def preprocess_bitcoin_data(df, scaler=None, drop_date=True):
         delta = df[price_col].diff()
         gain = (delta.where(delta > 0, 0)).rolling(window=14, min_periods=1).mean()
         loss = (-delta.where(delta < 0, 0)).rolling(window=14, min_periods=1).mean()
+        # Prevent division by zero and infinity values
         rs = gain / (loss + 1e-10)
+        rs = np.clip(rs, 0, 100)  # Clip RS to reasonable range
         df['RSI'] = 100 - (100 / (1 + rs))
+        df['RSI'] = np.clip(df['RSI'], 0, 100)  # RSI should be 0-100
         
         # MACD
         ema_12 = df[price_col].ewm(span=12, adjust=False).mean()
@@ -64,6 +67,7 @@ def preprocess_bitcoin_data(df, scaler=None, drop_date=True):
         # Bollinger Bands
         df['BB_middle'] = df[price_col].rolling(window=20, min_periods=1).mean()
         bb_std = df[price_col].rolling(window=20, min_periods=1).std()
+        bb_std = bb_std.fillna(0)  # Handle zero std deviation
         df['BB_upper'] = df['BB_middle'] + (bb_std * 2)
         df['BB_lower'] = df['BB_middle'] - (bb_std * 2)
         df['BB_width'] = df['BB_upper'] - df['BB_lower']
@@ -78,7 +82,19 @@ def preprocess_bitcoin_data(df, scaler=None, drop_date=True):
     numeric_cols = df.select_dtypes(include=[np.number]).columns
     df[numeric_cols] = df[numeric_cols].ffill().bfill()
     
-    # Drop any remaining NaN rows
+    # Clean infinity values that may have been created during calculations
+    df = df.replace([np.inf, -np.inf], np.nan)
+    
+    # Fill remaining NaNs with column medians
+    for col in numeric_cols:
+        if df[col].isna().any():
+            median_val = df[col].median()
+            if np.isnan(median_val):
+                df[col] = df[col].fillna(0)
+            else:
+                df[col] = df[col].fillna(median_val)
+    
+    # Drop any remaining NaN rows (should be none now)
     df = df.dropna()
     
     # Identify feature columns (exclude date and target)

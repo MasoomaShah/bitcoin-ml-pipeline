@@ -1,0 +1,29 @@
+{
+  "classification": {
+    "model_id": "2381461921413988352",
+    "resource_name": "projects/63831444770/locations/us-central1/models/2381461921413988352",
+    "display_name": "bitcoin_price_classifier_v20251207T164209Z",
+    "metrics": {
+      "model_name": "RandomForest",
+      "accuracy": 0.6454545454545455,
+      "f1_score": 0.6267071468795142,
+      "precision": 0.6504924242424241,
+      "recall": 0.6454545454545455,
+      "test_samples": 110
+    }
+  },
+  "regression": {
+    "model_id": "5094880696904712192",
+    "resource_name": "projects/63831444770/locations/us-central1/models/5094880696904712192",
+    "display_name": "bitcoin_price_regressor_v20251207T164209Z",
+    "metrics": {
+      "model_name": "SVR",
+      "rmse": 0.07895943894259587,
+      "mae": 0.05777705408167711,
+      "r2": -0.84183269790383,
+      "test_samples": 110
+    }
+  },
+  "uploaded_at": "2025-12-07T16:45:24.297772",
+  "version": "v20251207T164209Z"
+}

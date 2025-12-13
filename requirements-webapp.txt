@@ -8,9 +8,22 @@ plotly>=5.17.0
 fastapi>=0.104.0
 uvicorn>=0.24.0
 pydantic>=2.4.0
+python-multipart>=0.0.6
 
-# Already in requirements.txt but needed for web app
+# Data science libraries
 pandas>=2.1.0
 numpy>=1.24.0
 scikit-learn>=1.3.0
 joblib>=1.3.0
+scipy>=1.11.0
+
+# Data fetching
+alpha-vantage>=2.3.1
+requests>=2.31.0
+
+# Additional dependencies from main requirements
+python-dotenv>=1.0.0
+pytz>=2023.3
+
+# Explainability
+shap>=0.42.0

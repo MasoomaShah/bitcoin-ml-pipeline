@@ -1,5 +1,5 @@
 {
-  "active_version": "v20251206T120428Z",
+  "active_version": "v20251208T075527Z",
   "versions": {
     "v20251202T181703Z": {
       "reg_model": "models/v20251202T181703Z_reg_model.pkl",
@@ -421,6 +421,400 @@
         "precision": 0.5440771349862259,
         "recall": 0.5681818181818182,
         "test_samples": 44
+      }
+    },
+    "v20251206T120707Z": {
+      "reg_model": "models\\v20251206T120707Z_reg_model.pkl",
+      "clf_model": "models\\v20251206T120707Z_clf_model.pkl",
+      "scaler": "models\\v20251206T120707Z_scaler.pkl",
+      "feature_columns": "models\\v20251206T120707Z_feature_columns.json",
+      "metadata": "models\\v20251206T120707Z_training_metadata.json",
+      "created_at": "2025-12-06T12:07:15.207404Z",
+      "regression_metrics": {
+        "rmse": 0.10446336600873032,
+        "mae": 0.08431242760442377,
+        "r2": -0.6451130837272023,
+        "test_samples": 33
+      },
+      "classification_metrics": {
+        "accuracy": 0.6363636363636364,
+        "f1_score": 0.5745454545454545,
+        "precision": 0.5987460815047022,
+        "recall": 0.6363636363636364,
+        "test_samples": 33
+      }
+    },
+    "v20251206T160836Z": {
+      "reg_model": "C:\\Users\\smaso\\OneDrive\\Desktop\\5th semester\\ML PROJECT\\models\\v20251206T160836Z_reg_model.pkl",
+      "clf_model": "C:\\Users\\smaso\\OneDrive\\Desktop\\5th semester\\ML PROJECT\\models\\v20251206T160836Z_clf_model.pkl",
+      "scaler": "C:\\Users\\smaso\\OneDrive\\Desktop\\5th semester\\ML PROJECT\\models\\v20251206T160836Z_scaler.pkl",
+      "feature_columns": "C:\\Users\\smaso\\OneDrive\\Desktop\\5th semester\\ML PROJECT\\models\\v20251206T160836Z_feature_columns.json",
+      "metadata": "C:\\Users\\smaso\\OneDrive\\Desktop\\5th semester\\ML PROJECT\\models\\v20251206T160836Z_training_metadata.json",
+      "created_at": "2025-12-06T16:09:01.020297Z",
+      "regression_metrics": {
+        "rmse": 0.12125081613185193,
+        "mae": 0.09162294639965501,
+        "r2": -1.2163434790701908,
+        "test_samples": 33
+      },
+      "classification_metrics": {
+        "accuracy": 0.6363636363636364,
+        "f1_score": 0.5745454545454546,
+        "precision": 0.5987460815047022,
+        "recall": 0.6363636363636364,
+        "test_samples": 33
+      }
+    },
+    "v20251206T161242Z": {
+      "reg_model": "C:\\Users\\smaso\\OneDrive\\Desktop\\5th semester\\ML PROJECT\\models\\v20251206T161242Z_reg_model.pkl",
+      "clf_model": "C:\\Users\\smaso\\OneDrive\\Desktop\\5th semester\\ML PROJECT\\models\\v20251206T161242Z_clf_model.pkl",
+      "scaler": "C:\\Users\\smaso\\OneDrive\\Desktop\\5th semester\\ML PROJECT\\models\\v20251206T161242Z_scaler.pkl",
+      "feature_columns": "C:\\Users\\smaso\\OneDrive\\Desktop\\5th semester\\ML PROJECT\\models\\v20251206T161242Z_feature_columns.json",
+      "metadata": "C:\\Users\\smaso\\OneDrive\\Desktop\\5th semester\\ML PROJECT\\models\\v20251206T161242Z_training_metadata.json",
+      "created_at": "2025-12-06T16:12:59.389258Z",
+      "regression_metrics": {
+        "rmse": 0.12125081613185194,
+        "mae": 0.09162294639965501,
+        "r2": -1.2163434790701912,
+        "test_samples": 33
+      },
+      "classification_metrics": {
+        "accuracy": 0.6363636363636364,
+        "f1_score": 0.5745454545454546,
+        "precision": 0.5987460815047022,
+        "recall": 0.6363636363636364,
+        "test_samples": 33
+      }
+    },
+    "v20251207T160259Z": {
+      "reg_model": "C:\\Users\\smaso\\OneDrive\\Desktop\\5th semester\\ML PROJECT\\models\\v20251207T160259Z_reg_model.pkl",
+      "clf_model": "C:\\Users\\smaso\\OneDrive\\Desktop\\5th semester\\ML PROJECT\\models\\v20251207T160259Z_clf_model.pkl",
+      "scaler": "C:\\Users\\smaso\\OneDrive\\Desktop\\5th semester\\ML PROJECT\\models\\v20251207T160259Z_scaler.pkl",
+      "feature_columns": "C:\\Users\\smaso\\OneDrive\\Desktop\\5th semester\\ML PROJECT\\models\\v20251207T160259Z_feature_columns.json",
+      "metadata": "C:\\Users\\smaso\\OneDrive\\Desktop\\5th semester\\ML PROJECT\\models\\v20251207T160259Z_training_metadata.json",
+      "created_at": "2025-12-07T16:03:09.744587Z",
+      "regression_metrics": {
+        "rmse": 2.3139239327724543,
+        "mae": 0.9466710215947419,
+        "r2": -1580.7586830931973,
+        "test_samples": 110
+      },
+      "classification_metrics": {
+        "accuracy": 0.6181818181818182,
+        "f1_score": 0.5961193735841622,
+        "precision": 0.6188010371918417,
+        "recall": 0.6181818181818182,
+        "test_samples": 110
+      }
+    },
+    "v20251207T160423Z": {
+      "reg_model": "C:\\Users\\smaso\\OneDrive\\Desktop\\5th semester\\ML PROJECT\\models\\v20251207T160423Z_reg_model.pkl",
+      "clf_model": "C:\\Users\\smaso\\OneDrive\\Desktop\\5th semester\\ML PROJECT\\models\\v20251207T160423Z_clf_model.pkl",
+      "scaler": "C:\\Users\\smaso\\OneDrive\\Desktop\\5th semester\\ML PROJECT\\models\\v20251207T160423Z_scaler.pkl",
+      "feature_columns": "C:\\Users\\smaso\\OneDrive\\Desktop\\5th semester\\ML PROJECT\\models\\v20251207T160423Z_feature_columns.json",
+      "metadata": "C:\\Users\\smaso\\OneDrive\\Desktop\\5th semester\\ML PROJECT\\models\\v20251207T160423Z_training_metadata.json",
+      "created_at": "2025-12-07T16:04:33.691881Z",
+      "regression_metrics": {
+        "rmse": 2.313923932772454,
+        "mae": 0.9466710215947419,
+        "r2": -1580.758683093197,
+        "test_samples": 110
+      },
+      "classification_metrics": {
+        "accuracy": 0.6181818181818182,
+        "f1_score": 0.5961193735841622,
+        "precision": 0.6188010371918417,
+        "recall": 0.6181818181818182,
+        "test_samples": 110
+      }
+    },
+    "v20251207T160558Z": {
+      "reg_model": "C:\\Users\\smaso\\OneDrive\\Desktop\\5th semester\\ML PROJECT\\models\\v20251207T160558Z_reg_model.pkl",
+      "clf_model": "C:\\Users\\smaso\\OneDrive\\Desktop\\5th semester\\ML PROJECT\\models\\v20251207T160558Z_clf_model.pkl",
+      "scaler": "C:\\Users\\smaso\\OneDrive\\Desktop\\5th semester\\ML PROJECT\\models\\v20251207T160558Z_scaler.pkl",
+      "feature_columns": "C:\\Users\\smaso\\OneDrive\\Desktop\\5th semester\\ML PROJECT\\models\\v20251207T160558Z_feature_columns.json",
+      "metadata": "C:\\Users\\smaso\\OneDrive\\Desktop\\5th semester\\ML PROJECT\\models\\v20251207T160558Z_training_metadata.json",
+      "created_at": "2025-12-07T16:06:08.728526Z",
+      "regression_metrics": {
+        "rmse": 2.313923932772454,
+        "mae": 0.9466710215947419,
+        "r2": -1580.758683093197,
+        "test_samples": 110
+      },
+      "classification_metrics": {
+        "accuracy": 0.6181818181818182,
+        "f1_score": 0.5961193735841622,
+        "precision": 0.6188010371918417,
+        "recall": 0.6181818181818182,
+        "test_samples": 110
+      }
+    },
+    "v20251207T160808Z": {
+      "reg_model": "C:\\Users\\smaso\\OneDrive\\Desktop\\5th semester\\ML PROJECT\\models\\v20251207T160808Z_reg_model.pkl",
+      "clf_model": "C:\\Users\\smaso\\OneDrive\\Desktop\\5th semester\\ML PROJECT\\models\\v20251207T160808Z_clf_model.pkl",
+      "scaler": "C:\\Users\\smaso\\OneDrive\\Desktop\\5th semester\\ML PROJECT\\models\\v20251207T160808Z_scaler.pkl",
+      "feature_columns": "C:\\Users\\smaso\\OneDrive\\Desktop\\5th semester\\ML PROJECT\\models\\v20251207T160808Z_feature_columns.json",
+      "metadata": "C:\\Users\\smaso\\OneDrive\\Desktop\\5th semester\\ML PROJECT\\models\\v20251207T160808Z_training_metadata.json",
+      "created_at": "2025-12-07T16:08:17.964394Z",
+      "regression_metrics": {
+        "rmse": 2.3139239327724543,
+        "mae": 0.9466710215947419,
+        "r2": -1580.7586830931975,
+        "test_samples": 110
+      },
+      "classification_metrics": {
+        "accuracy": 0.6181818181818182,
+        "f1_score": 0.5961193735841622,
+        "precision": 0.6188010371918417,
+        "recall": 0.6181818181818182,
+        "test_samples": 110
+      }
+    },
+    "v20251207T161125Z": {
+      "reg_model": "C:\\Users\\smaso\\OneDrive\\Desktop\\5th semester\\ML PROJECT\\models\\v20251207T161125Z_reg_model.pkl",
+      "clf_model": "C:\\Users\\smaso\\OneDrive\\Desktop\\5th semester\\ML PROJECT\\models\\v20251207T161125Z_clf_model.pkl",
+      "scaler": "C:\\Users\\smaso\\OneDrive\\Desktop\\5th semester\\ML PROJECT\\models\\v20251207T161125Z_scaler.pkl",
+      "feature_columns": "C:\\Users\\smaso\\OneDrive\\Desktop\\5th semester\\ML PROJECT\\models\\v20251207T161125Z_feature_columns.json",
+      "metadata": "C:\\Users\\smaso\\OneDrive\\Desktop\\5th semester\\ML PROJECT\\models\\v20251207T161125Z_training_metadata.json",
+      "created_at": "2025-12-07T16:11:35.853048Z",
+      "regression_metrics": {
+        "rmse": 2.3139239327724543,
+        "mae": 0.946671021594742,
+        "r2": -1580.7586830931975,
+        "test_samples": 110
+      },
+      "classification_metrics": {
+        "accuracy": 0.6181818181818182,
+        "f1_score": 0.5961193735841622,
+        "precision": 0.6188010371918417,
+        "recall": 0.6181818181818182,
+        "test_samples": 110
+      }
+    },
+    "v20251207T161242Z": {
+      "reg_model": "C:\\Users\\smaso\\OneDrive\\Desktop\\5th semester\\ML PROJECT\\models\\v20251207T161242Z_reg_model.pkl",
+      "clf_model": "C:\\Users\\smaso\\OneDrive\\Desktop\\5th semester\\ML PROJECT\\models\\v20251207T161242Z_clf_model.pkl",
+      "scaler": "C:\\Users\\smaso\\OneDrive\\Desktop\\5th semester\\ML PROJECT\\models\\v20251207T161242Z_scaler.pkl",
+      "feature_columns": "C:\\Users\\smaso\\OneDrive\\Desktop\\5th semester\\ML PROJECT\\models\\v20251207T161242Z_feature_columns.json",
+      "metadata": "C:\\Users\\smaso\\OneDrive\\Desktop\\5th semester\\ML PROJECT\\models\\v20251207T161242Z_training_metadata.json",
+      "created_at": "2025-12-07T16:12:51.247529Z",
+      "regression_metrics": {
+        "rmse": 2.3139239327724543,
+        "mae": 0.946671021594742,
+        "r2": -1580.7586830931973,
+        "test_samples": 110
+      },
+      "classification_metrics": {
+        "accuracy": 0.6181818181818182,
+        "f1_score": 0.5961193735841622,
+        "precision": 0.6188010371918417,
+        "recall": 0.6181818181818182,
+        "test_samples": 110
+      }
+    },
+    "v20251207T161926Z": {
+      "reg_model": "C:\\Users\\smaso\\OneDrive\\Desktop\\5th semester\\ML PROJECT\\models\\v20251207T161926Z_reg_model.pkl",
+      "clf_model": "C:\\Users\\smaso\\OneDrive\\Desktop\\5th semester\\ML PROJECT\\models\\v20251207T161926Z_clf_model.pkl",
+      "scaler": "C:\\Users\\smaso\\OneDrive\\Desktop\\5th semester\\ML PROJECT\\models\\v20251207T161926Z_scaler.pkl",
+      "feature_columns": "C:\\Users\\smaso\\OneDrive\\Desktop\\5th semester\\ML PROJECT\\models\\v20251207T161926Z_feature_columns.json",
+      "metadata": "C:\\Users\\smaso\\OneDrive\\Desktop\\5th semester\\ML PROJECT\\models\\v20251207T161926Z_training_metadata.json",
+      "created_at": "2025-12-07T16:19:31.538876Z",
+      "regression_metrics": {
+        "rmse": 2.3139239327724543,
+        "mae": 0.946671021594742,
+        "r2": -1580.7586830931973,
+        "test_samples": 110
+      },
+      "classification_metrics": {
+        "accuracy": 0.6181818181818182,
+        "f1_score": 0.5961193735841622,
+        "precision": 0.6188010371918417,
+        "recall": 0.6181818181818182,
+        "test_samples": 110
+      }
+    },
+    "v20251207T162626Z": {
+      "reg_model": "C:\\Users\\smaso\\OneDrive\\Desktop\\5th semester\\ML PROJECT\\models\\v20251207T162626Z_reg_model.pkl",
+      "clf_model": "C:\\Users\\smaso\\OneDrive\\Desktop\\5th semester\\ML PROJECT\\models\\v20251207T162626Z_clf_model.pkl",
+      "scaler": "C:\\Users\\smaso\\OneDrive\\Desktop\\5th semester\\ML PROJECT\\models\\v20251207T162626Z_scaler.pkl",
+      "feature_columns": "C:\\Users\\smaso\\OneDrive\\Desktop\\5th semester\\ML PROJECT\\models\\v20251207T162626Z_feature_columns.json",
+      "metadata": "C:\\Users\\smaso\\OneDrive\\Desktop\\5th semester\\ML PROJECT\\models\\v20251207T162626Z_training_metadata.json",
+      "created_at": "2025-12-07T16:26:57.858326Z",
+      "regression_metrics": {
+        "model_name": "SVR",
+        "rmse": 0.07895943894259587,
+        "mae": 0.05777705408167711,
+        "r2": -0.84183269790383,
+        "test_samples": 110
+      },
+      "classification_metrics": {
+        "model_name": "RandomForest",
+        "accuracy": 0.6454545454545455,
+        "f1_score": 0.6267071468795142,
+        "precision": 0.6504924242424241,
+        "recall": 0.6454545454545455,
+        "test_samples": 110
+      }
+    },
+    "v20251207T163151Z": {
+      "reg_model": "C:\\Users\\smaso\\OneDrive\\Desktop\\5th semester\\ML PROJECT\\models\\v20251207T163151Z_reg_model.pkl",
+      "clf_model": "C:\\Users\\smaso\\OneDrive\\Desktop\\5th semester\\ML PROJECT\\models\\v20251207T163151Z_clf_model.pkl",
+      "scaler": "C:\\Users\\smaso\\OneDrive\\Desktop\\5th semester\\ML PROJECT\\models\\v20251207T163151Z_scaler.pkl",
+      "feature_columns": "C:\\Users\\smaso\\OneDrive\\Desktop\\5th semester\\ML PROJECT\\models\\v20251207T163151Z_feature_columns.json",
+      "metadata": "C:\\Users\\smaso\\OneDrive\\Desktop\\5th semester\\ML PROJECT\\models\\v20251207T163151Z_training_metadata.json",
+      "created_at": "2025-12-07T16:32:27.790935Z",
+      "regression_metrics": {
+        "model_name": "SVR",
+        "rmse": 0.07895943894259587,
+        "mae": 0.05777705408167711,
+        "r2": -0.84183269790383,
+        "test_samples": 110
+      },
+      "classification_metrics": {
+        "model_name": "RandomForest",
+        "accuracy": 0.6454545454545455,
+        "f1_score": 0.6267071468795142,
+        "precision": 0.6504924242424241,
+        "recall": 0.6454545454545455,
+        "test_samples": 110
+      }
+    },
+    "v20251207T163358Z": {
+      "reg_model": "C:\\Users\\smaso\\OneDrive\\Desktop\\5th semester\\ML PROJECT\\models\\v20251207T163358Z_reg_model.pkl",
+      "clf_model": "C:\\Users\\smaso\\OneDrive\\Desktop\\5th semester\\ML PROJECT\\models\\v20251207T163358Z_clf_model.pkl",
+      "scaler": "C:\\Users\\smaso\\OneDrive\\Desktop\\5th semester\\ML PROJECT\\models\\v20251207T163358Z_scaler.pkl",
+      "feature_columns": "C:\\Users\\smaso\\OneDrive\\Desktop\\5th semester\\ML PROJECT\\models\\v20251207T163358Z_feature_columns.json",
+      "metadata": "C:\\Users\\smaso\\OneDrive\\Desktop\\5th semester\\ML PROJECT\\models\\v20251207T163358Z_training_metadata.json",
+      "created_at": "2025-12-07T16:34:30.456743Z",
+      "regression_metrics": {
+        "model_name": "SVR",
+        "rmse": 0.07895943894259587,
+        "mae": 0.05777705408167711,
+        "r2": -0.84183269790383,
+        "test_samples": 110
+      },
+      "classification_metrics": {
+        "model_name": "RandomForest",
+        "accuracy": 0.6454545454545455,
+        "f1_score": 0.6267071468795142,
+        "precision": 0.6504924242424241,
+        "recall": 0.6454545454545455,
+        "test_samples": 110
+      }
+    },
+    "v20251207T164120Z": {
+      "reg_model": "C:\\Users\\smaso\\OneDrive\\Desktop\\5th semester\\ML PROJECT\\models\\v20251207T164120Z_reg_model.pkl",
+      "clf_model": "C:\\Users\\smaso\\OneDrive\\Desktop\\5th semester\\ML PROJECT\\models\\v20251207T164120Z_clf_model.pkl",
+      "scaler": "C:\\Users\\smaso\\OneDrive\\Desktop\\5th semester\\ML PROJECT\\models\\v20251207T164120Z_scaler.pkl",
+      "feature_columns": "C:\\Users\\smaso\\OneDrive\\Desktop\\5th semester\\ML PROJECT\\models\\v20251207T164120Z_feature_columns.json",
+      "metadata": "C:\\Users\\smaso\\OneDrive\\Desktop\\5th semester\\ML PROJECT\\models\\v20251207T164120Z_training_metadata.json",
+      "created_at": "2025-12-07T16:41:55.662627Z",
+      "regression_metrics": {
+        "model_name": "SVR",
+        "rmse": 0.07895943894259587,
+        "mae": 0.05777705408167711,
+        "r2": -0.84183269790383,
+        "test_samples": 110
+      },
+      "classification_metrics": {
+        "model_name": "RandomForest",
+        "accuracy": 0.6454545454545455,
+        "f1_score": 0.6267071468795142,
+        "precision": 0.6504924242424241,
+        "recall": 0.6454545454545455,
+        "test_samples": 110
+      }
+    },
+    "v20251207T164209Z": {
+      "reg_model": "C:\\Users\\smaso\\OneDrive\\Desktop\\5th semester\\ML PROJECT\\models\\v20251207T164209Z_reg_model.pkl",
+      "clf_model": "C:\\Users\\smaso\\OneDrive\\Desktop\\5th semester\\ML PROJECT\\models\\v20251207T164209Z_clf_model.pkl",
+      "scaler": "C:\\Users\\smaso\\OneDrive\\Desktop\\5th semester\\ML PROJECT\\models\\v20251207T164209Z_scaler.pkl",
+      "feature_columns": "C:\\Users\\smaso\\OneDrive\\Desktop\\5th semester\\ML PROJECT\\models\\v20251207T164209Z_feature_columns.json",
+      "metadata": "C:\\Users\\smaso\\OneDrive\\Desktop\\5th semester\\ML PROJECT\\models\\v20251207T164209Z_training_metadata.json",
+      "created_at": "2025-12-07T16:42:41.379438Z",
+      "regression_metrics": {
+        "model_name": "SVR",
+        "rmse": 0.07895943894259587,
+        "mae": 0.05777705408167711,
+        "r2": -0.84183269790383,
+        "test_samples": 110
+      },
+      "classification_metrics": {
+        "model_name": "RandomForest",
+        "accuracy": 0.6454545454545455,
+        "f1_score": 0.6267071468795142,
+        "precision": 0.6504924242424241,
+        "recall": 0.6454545454545455,
+        "test_samples": 110
+      }
+    },
+    "v20251208T070858Z": {
+      "reg_model": "C:\\Users\\smaso\\OneDrive\\Desktop\\5th semester\\ML PROJECT\\models\\v20251208T070858Z_reg_model.pkl",
+      "clf_model": "C:\\Users\\smaso\\OneDrive\\Desktop\\5th semester\\ML PROJECT\\models\\v20251208T070858Z_clf_model.pkl",
+      "scaler": "C:\\Users\\smaso\\OneDrive\\Desktop\\5th semester\\ML PROJECT\\models\\v20251208T070858Z_scaler.pkl",
+      "feature_columns": "C:\\Users\\smaso\\OneDrive\\Desktop\\5th semester\\ML PROJECT\\models\\v20251208T070858Z_feature_columns.json",
+      "metadata": "C:\\Users\\smaso\\OneDrive\\Desktop\\5th semester\\ML PROJECT\\models\\v20251208T070858Z_training_metadata.json",
+      "created_at": "2025-12-08T07:09:03.822289Z",
+      "regression_metrics": {
+        "model_name": "RandomForest",
+        "rmse": 0.22129362527833576,
+        "mae": 0.12683736430172562,
+        "r2": -13.310704754299323,
+        "test_samples": 110
+      },
+      "classification_metrics": {
+        "model_name": "RandomForest",
+        "accuracy": 0.6363636363636364,
+        "f1_score": 0.6294765840220387,
+        "precision": 0.6334088446764503,
+        "recall": 0.6363636363636364,
+        "test_samples": 110
+      }
+    },
+    "v20251208T070913Z": {
+      "reg_model": "C:\\Users\\smaso\\OneDrive\\Desktop\\5th semester\\ML PROJECT\\models\\v20251208T070913Z_reg_model.pkl",
+      "clf_model": "C:\\Users\\smaso\\OneDrive\\Desktop\\5th semester\\ML PROJECT\\models\\v20251208T070913Z_clf_model.pkl",
+      "scaler": "C:\\Users\\smaso\\OneDrive\\Desktop\\5th semester\\ML PROJECT\\models\\v20251208T070913Z_scaler.pkl",
+      "feature_columns": "C:\\Users\\smaso\\OneDrive\\Desktop\\5th semester\\ML PROJECT\\models\\v20251208T070913Z_feature_columns.json",
+      "metadata": "C:\\Users\\smaso\\OneDrive\\Desktop\\5th semester\\ML PROJECT\\models\\v20251208T070913Z_training_metadata.json",
+      "created_at": "2025-12-08T07:09:33.143128Z",
+      "regression_metrics": {
+        "model_name": "SVR",
+        "rmse": 0.07979518414288524,
+        "mae": 0.05876131196962018,
+        "r2": -0.8607009411732238,
+        "test_samples": 110
+      },
+      "classification_metrics": {
+        "model_name": "GradientBoosting",
+        "accuracy": 0.6363636363636364,
+        "f1_score": 0.636969696969697,
+        "precision": 0.637995105592314,
+        "recall": 0.6363636363636364,
+        "test_samples": 110
+      }
+    },
+    "v20251208T075527Z": {
+      "reg_model": "C:\\Users\\smaso\\OneDrive\\Desktop\\5th semester\\ML PROJECT\\models\\v20251208T075527Z_reg_model.pkl",
+      "clf_model": "C:\\Users\\smaso\\OneDrive\\Desktop\\5th semester\\ML PROJECT\\models\\v20251208T075527Z_clf_model.pkl",
+      "scaler": "C:\\Users\\smaso\\OneDrive\\Desktop\\5th semester\\ML PROJECT\\models\\v20251208T075527Z_scaler.pkl",
+      "feature_columns": "C:\\Users\\smaso\\OneDrive\\Desktop\\5th semester\\ML PROJECT\\models\\v20251208T075527Z_feature_columns.json",
+      "metadata": "C:\\Users\\smaso\\OneDrive\\Desktop\\5th semester\\ML PROJECT\\models\\v20251208T075527Z_training_metadata.json",
+      "created_at": "2025-12-08T07:55:32.980636Z",
+      "regression_metrics": {
+        "model_name": "RandomForest",
+        "rmse": 0.23584908013818903,
+        "mae": 0.12869453240955603,
+        "r2": -20.409849106346243,
+        "test_samples": 219
+      },
+      "classification_metrics": {
+        "model_name": "RandomForest",
+        "accuracy": 0.5616438356164384,
+        "f1_score": 0.4477538498921726,
+        "precision": 0.5706549312862595,
+        "recall": 0.5616438356164384,
+        "test_samples": 219
       }
     }
   }

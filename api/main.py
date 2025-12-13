@@ -540,7 +540,8 @@ def get_model_version(version: str):
 
 
 @app.post("/models/activate")
-def activate_model_version(version: str, token: str = None, reload: bool = True):
+def activate_model_version(version: str, token: str = None, 
+                           reload: bool = True):
     """Set a version as active in the manifest. Optionally reload models.
     Provide `MODEL_RELOAD_TOKEN` env var or None if not set.
     """

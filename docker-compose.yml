@@ -1,36 +1,71 @@
 services:
+  # FastAPI Backend
   api:
     build:
       context: .
-      dockerfile: Dockerfile
-    image: mlproject-api:latest
-    container_name: mlproject_api
+      dockerfile: Dockerfile.api
+    image: bitcoin-ml-api:latest
+    container_name: bitcoin_ml_api
     ports:
       - '8000:8000'
     volumes:
-      - ./models:/app/models:rw
+      - ./models:/app/models:ro
+      - ./data:/app/data:rw
     environment:
-      - MODEL_RELOAD_TOKEN=${MODEL_RELOAD_TOKEN:-}
-      - DATABASE_URL=postgresql://postgres:password@db:5432/postgres
-    depends_on:
-      - db
+      - ALPHA_VANTAGE_API_KEY=${ALPHA_VANTAGE_API_KEY:-WMK7ADA9G2OXN5DA}
+      - PYTHONUNBUFFERED=1
+    restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/" ]
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
       timeout: 5s
       retries: 3
+    networks:
+      - ml-network
+
+  # Streamlit Dashboard
+  dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile.streamlit
+    image: bitcoin-ml-dashboard:latest
+    container_name: bitcoin_ml_dashboard
+    ports:
+      - '8501:8501'
+    volumes:
+      - ./models:/app/models:ro
+      - ./data:/app/data:rw
+    environment:
+      - ALPHA_VANTAGE_API_KEY=${ALPHA_VANTAGE_API_KEY:-WMK7ADA9G2OXN5DA}
+      - API_URL=http://api:8000
+      - PYTHONUNBUFFERED=1
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8501/_stcore/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    networks:
+      - ml-network
 
   db:
     image: postgres:15
-    container_name: mlproject_db
+    container_name: bitcoin_ml_db
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: password
-      POSTGRES_DB: postgres
+      POSTGRES_DB: bitcoin_ml
     volumes:
       - db-data:/var/lib/postgresql/data
     ports:
       - '5432:5432'
+    restart: unless-stopped
+    networks:
+      - ml-network
 
   # Optional Prefect service (comment/uncomment if you use Prefect flows locally)
   prefect:
@@ -38,7 +73,7 @@ services:
     # will NOT be started by default when you run `docker compose up`.
     # To start Prefect locally, run: `docker compose --profile prefect up --build`
     image: prefecthq/prefect:latest
-    container_name: mlproject_prefect
+    container_name: bitcoin_ml_prefect
     command: ["prefect", "server", "start", "--host", "0.0.0.0"]
     ports:
       - '4200:4200'
@@ -57,6 +92,12 @@ services:
       - PYTHONPATH=/app
     profiles:
       - prefect
+    networks:
+      - ml-network
 
 volumes:
   db-data:
+
+networks:
+  ml-network:
+    driver: bridge

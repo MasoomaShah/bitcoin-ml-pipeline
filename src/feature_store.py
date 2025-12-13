@@ -38,7 +38,8 @@ class BitcoinFeatureStore:
     def __init__(
         self,
         api_key: Optional[str] = None,
-        project_name: str = "bitcoin_ml_pipeline"
+        project_name: str = "bitcoin_ml_project",
+        host: str = "c.app.hopsworks.ai"
     ):
         """
         Initialize connection to Hopsworks Feature Store
@@ -46,9 +47,11 @@ class BitcoinFeatureStore:
         Args:
             api_key: Hopsworks API key (or set HOPSWORKS_API_KEY env var)
             project_name: Name of Hopsworks project
+            host: Hopsworks host URL
         """
         self.api_key = api_key or os.getenv('HOPSWORKS_API_KEY')
         self.project_name = project_name
+        self.host = host
         self.project = None
         self.fs = None
         self._feature_groups = {}
@@ -66,10 +69,11 @@ class BitcoinFeatureStore:
             return False
             
         try:
-            self.project = hopsworks.login(
-                api_key_value=self.api_key,
-                project=self.project_name
+            connection = hopsworks.connection(
+                host=self.host,
+                api_key_value=self.api_key
             )
+            self.project = connection.get_project(self.project_name)
             self.fs = self.project.get_feature_store()
             print(f"✓ Connected to Hopsworks project: {self.project_name}")
             return True

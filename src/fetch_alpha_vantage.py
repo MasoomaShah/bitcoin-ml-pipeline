@@ -73,7 +73,7 @@ def fetch_crypto_data(symbol='BTC', market='USD', outputsize='full'):
         data = data.reset_index()
         data = data.rename(columns={'index': 'date'})
         
-        print(f"✓ Successfully fetched {len(data)} data points")
+        print(f"[OK] Successfully fetched {len(data)} data points")
         print(f"  Date range: {data['date'].min()} to {data['date'].max()}")
         if 'Close' in data.columns:
             print(f"  Price range: ${data['Close'].min():.2f} - ${data['Close'].max():.2f}")
@@ -81,7 +81,7 @@ def fetch_crypto_data(symbol='BTC', market='USD', outputsize='full'):
         return data
         
     except Exception as e:
-        print(f"✗ Error fetching data from Alpha Vantage: {e}")
+        print(f"[ERROR] Error fetching data from Alpha Vantage: {e}")
         raise
 
 
@@ -140,12 +140,12 @@ def fetch_technical_indicators(symbol='BTC', market='USD', interval='daily'):
         indicators['BB_Middle'] = bbands_data['Real Middle Band']
         indicators['BB_Lower'] = bbands_data['Real Lower Band']
         
-        print(f"✓ Successfully fetched {len(indicators)} technical indicators")
+        print(f"[OK] Successfully fetched {len(indicators)} technical indicators")
         
         return indicators
         
     except Exception as e:
-        print(f"✗ Error fetching technical indicators: {e}")
+        print(f"[ERROR] Error fetching technical indicators: {e}")
         return {}
 
 
@@ -166,7 +166,7 @@ def fetch_crypto_with_indicators(symbol='BTC', market='USD', days=None):
     
     # Note: Technical indicators require separate API calls
     # Due to rate limits (5 calls/min), we'll compute them locally instead
-    print("\n⚠️  Technical indicators will be computed locally to avoid API rate limits")
+    print("\n[NOTE] Technical indicators will be computed locally to avoid API rate limits")
     
     # Limit to recent days if specified
     if days:

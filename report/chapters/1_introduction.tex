@@ -1,0 +1,203 @@
+\chapter{Introduction \& Problem Statement}
+\label{ch:introduction}
+
+\section{Executive Summary}
+
+The Bitcoin ML Pipeline is a comprehensive, production-grade machine learning system designed to predict Bitcoin price movements. Built with industry-standard tools and practices, this project demonstrates the complete lifecycle of an ML system—from data ingestion through model training, evaluation, deployment, and continuous monitoring.
+
+\section{Project Overview}
+
+\subsection{Domain}
+\textbf{Cryptocurrency Price Prediction} — Bitcoin (BTC/USD)
+
+\textbf{Problem Type:} Binary Classification + Regression
+\begin{itemize}
+    \item \textbf{Classification:} Predict price direction (UP/DOWN) for next trading period
+    \item \textbf{Regression:} Predict exact price change percentage
+\end{itemize}
+
+\subsection{Data Source}
+\begin{itemize}
+    \item \textbf{Primary API:} CoinGecko API (free, no rate limits)
+    \item \textbf{Alternative:} Alpha Vantage API (paid tier)
+    \item \textbf{Data Period:} 2010-present (5,600+ daily records)
+    \item \textbf{Update Frequency:} Hourly (via CI/CD automation)
+\end{itemize}
+
+\subsection{Technical Stack}
+\begin{table}[H]
+\centering
+\caption{Project Technology Stack}
+\begin{tabularx}{\textwidth}{lX}
+\toprule
+\textbf{Component} & \textbf{Technology} \\
+\midrule
+Language & Python 3.10+ \\
+ML Framework & Scikit-learn, TensorFlow/Keras, Prophet \\
+API Framework & FastAPI (with Uvicorn) \\
+Dashboard & Streamlit \\
+Containerization & Docker \& Docker Compose \\
+CI/CD & GitHub Actions (5 workflows) \\
+Orchestration & Prefect 2.0 \\
+Database & PostgreSQL (optional) \\
+Feature Store & Hopsworks (optional) \\
+Cloud & Google Cloud Platform (Vertex AI) \\
+Monitoring & Discord Webhooks, Prometheus (optional) \\
+Version Control & Git \& GitHub \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Problem Statement}
+
+\subsection{Business Context}
+Bitcoin is one of the most volatile assets in global markets, with daily price swings of 5-10\% not uncommon. Accurate short-term price prediction can provide significant value to:
+\begin{enumerate}
+    \item \textbf{Traders:} Make informed trading decisions
+    \item \textbf{Portfolio Managers:} Hedge cryptocurrency exposure
+    \item \textbf{Risk Analysts:} Understand market volatility
+    \item \textbf{DeFi Protocols:} Implement circuit breakers
+\end{enumerate}
+
+\subsection{Technical Challenge}
+Bitcoin price movements are influenced by multiple complex factors:
+\begin{itemize}
+    \item \textbf{Technical Indicators:} RSI, MACD, Bollinger Bands, Moving Averages
+    \item \textbf{Market Sentiment:} Social media, news events, regulatory announcements
+    \item \textbf{On-chain Metrics:} Transaction volume, network activity, whale movements
+    \item \textbf{Macroeconomic Factors:} Federal Reserve policy, inflation, risk assets
+    \item \textbf{Temporal Patterns:} Seasonality, day-of-week effects, time-of-day volatility
+\end{itemize}
+
+Traditional time-series models (ARIMA) struggle with these non-stationary, multi-modal relationships. Machine learning offers a powerful alternative.
+
+\subsection{Solution Approach}
+Our solution combines:
+\begin{enumerate}
+    \item \textbf{Feature Engineering:} 24 technical indicators + temporal features
+    \item \textbf{Model Diversity:} Classification + Regression + Deep Learning + Time-Series
+    \item \textbf{Systematic Experimentation:} 14+ models tested with hyperparameter tuning
+    \item \textbf{Continuous Learning:} Daily retraining with performance monitoring
+    \item \textbf{Production Deployment:} Containerized, orchestrated, monitored
+\end{enumerate}
+
+\section{Objectives}
+
+\subsection{Primary Objectives}
+\begin{enumerate}
+    \item Develop a feature engineering pipeline that computes 24+ technical indicators
+    \item Train and compare multiple ML models (classification, regression, deep learning, time-series)
+    \item Build a production-grade API for real-time predictions
+    \item Create an interactive dashboard for visualization and monitoring
+    \item Implement complete CI/CD automation for continuous deployment
+    \item Containerize the entire system for cloud-ready deployment
+\end{enumerate}
+
+\subsection{Secondary Objectives}
+\begin{enumerate}
+    \item Demonstrate ML best practices (versioning, monitoring, explainability)
+    \item Implement automated data quality checks
+    \item Add model explainability via SHAP/LIME
+    \item Setup alert system for anomalies
+    \item Document entire system comprehensively
+\end{enumerate}
+
+\section{Project Scope}
+
+\subsection{In Scope}
+\begin{itemize}
+    \item ✅ Bitcoin daily price prediction (1-day horizon)
+    \item ✅ 14+ ML models across multiple model families
+    \item ✅ Complete CI/CD pipeline (GitHub Actions)
+    \item ✅ Docker containerization
+    \item ✅ Prefect workflow orchestration
+    \item ✅ FastAPI + Streamlit deployment
+    \item ✅ SHAP/LIME explainability
+    \item ✅ Automated monitoring \& alerts
+\end{itemize}
+
+\subsection{Out of Scope}
+\begin{itemize}
+    \item ❌ Minute-level or second-level trading (requires more sophisticated setup)
+    \item ❌ Multi-asset correlation analysis
+    \item ❌ Advanced sentiment analysis
+    \item ❌ On-chain metric collection (complex blockchain queries)
+    \item ❌ Real money trading integration
+\end{itemize}
+
+\section{Key Metrics \& Success Criteria}
+
+\subsection{Model Performance}
+\begin{table}[H]
+\centering
+\caption{Target Performance Metrics}
+\begin{tabularx}{\textwidth}{lX}
+\toprule
+\textbf{Metric} & \textbf{Target} \\
+\midrule
+Classification Accuracy & $\geq 65\%$ \\
+Classification F1-Score & $\geq 0.60$ \\
+Regression RMSE & $\leq 5.0$ (price \$) \\
+Regression R² & $\geq 0.30$ \\
+Model Consistency & Replicated results across 3+ versions \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Infrastructure Performance}
+\begin{table}[H]
+\centering
+\caption{Target Infrastructure Metrics}
+\begin{tabularx}{\textwidth}{lX}
+\toprule
+\textbf{Metric} & \textbf{Target} \\
+\midrule
+API Response Time & $< 100ms$ \\
+Feature Engineering Time & $< 5 mins$ (hourly) \\
+Model Training Time & $< 30 mins$ (daily) \\
+CI/CD Pipeline Duration & $< 20 mins$ \\
+System Uptime & $> 99.5\%$ \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Report Structure}
+
+This report is organized as follows:
+
+\begin{enumerate}
+    \item \textbf{Chapter 2: ML Experiments \& Comparison} — Detailed analysis of 14+ models, performance metrics, and best practices
+    \item \textbf{Chapter 3: System Architecture} — High-level design with TikZ diagrams
+    \item \textbf{Chapter 4: Containerization Workflow} — Docker setup, multi-stage builds, docker-compose orchestration
+    \item \textbf{Chapter 5: CI/CD Pipeline Explanation} — GitHub Actions workflows with detailed job breakdown
+    \item \textbf{Chapter 6: Prefect Orchestration} — Task flow definition and error handling
+    \item \textbf{Chapter 7: Methodology Flow Diagram} — End-to-end pipeline visualization
+    \item \textbf{Chapter 8: Conclusions \& Future Work} — Observations, limitations, and recommendations
+    \item \textbf{Appendix A: Code Snippets} — Key implementation examples
+    \item \textbf{Appendix B: Configuration Files} — Docker, CI/CD, Prefect configs
+\end{enumerate}
+
+\section{Key Achievements}
+
+\subsection{Quantitative Results}
+\begin{itemize}
+    \item ✅ \textbf{70\%} classification accuracy (best model: v20251205T052715Z)
+    \item ✅ \textbf{0.483} R² regression score (on small test set)
+    \item ✅ \textbf{24} technical indicators engineered
+    \item ✅ \textbf{14+} models tested and compared
+    \item ✅ \textbf{5} fully automated GitHub Actions workflows
+    \item ✅ \textbf{10+} model versions tracked in registry
+    \item ✅ \textbf{5,600+} Bitcoin daily records processed
+\end{itemize}
+
+\subsection{Qualitative Achievements}
+\begin{itemize}
+    \item ✅ Production-grade system with comprehensive documentation
+    \item ✅ Complete CI/CD automation (no manual deployments)
+    \item ✅ Containerized for cloud-ready deployment
+    \item ✅ Orchestrated with Prefect for fault tolerance
+    \item ✅ Model explainability with SHAP/LIME
+    \item ✅ Real-time monitoring \& alerting
+    \item ✅ 50,000+ lines of technical documentation
+\end{itemize}
+

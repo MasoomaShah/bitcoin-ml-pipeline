@@ -15,3 +15,14 @@ requests
 # hopsworks  # Optional: Uncomment after creating Hopsworks account
 # hsfs       # Optional: Feature store integration
 great-expectations
+
+# Explainability
+shap>=0.42.0
+lime>=0.2.0.1
+
+# Deep Learning
+tensorflow>=2.13.0
+keras>=2.13.0
+
+# Time Series
+prophet>=1.1.5

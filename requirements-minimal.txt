@@ -1,0 +1,21 @@
+# Minimal Requirements for Bitcoin ML Pipeline
+
+# Core ML Libraries
+scikit-learn>=1.3.0
+pandas>=2.0.0
+numpy>=1.24.0
+
+# Data Fetching
+alpha-vantage>=2.3.1
+requests>=2.31.0
+
+# Model Persistence
+joblib>=1.3.0
+
+# Google Cloud (Optional - for Vertex AI)
+# Uncomment if using Vertex AI Feature Store and Model Registry
+# google-cloud-aiplatform>=1.38.0
+# google-cloud-storage>=2.10.0
+
+# Progress Bars (Optional)
+tqdm>=4.65.0

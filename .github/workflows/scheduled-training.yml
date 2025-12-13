@@ -365,6 +365,36 @@ jobs:
           echo "Run: ${{ github.run_number }}"
           echo "Check artifacts for detailed reports"
 
+      - name: Send Discord notification on success
+        if: success()
+        uses: sarisia/actions-status-discord@v1
+        with:
+          webhook_url: ${{ secrets.DISCORD_WEBHOOK }}
+          status: success
+          title: "✅ Daily Bitcoin Model Training"
+          description: |
+            Training completed successfully!
+            
+            📊 Models trained and evaluated
+            📦 Artifacts saved (60 days retention)
+            📈 Performance metrics logged
+            
+            Run ID: ${{ github.run_number }}
+            Timestamp: ${{ github.event.scheduled_time || 'Manual' }}
+
+      - name: Send Discord notification on failure
+        if: failure()
+        uses: sarisia/actions-status-discord@v1
+        with:
+          webhook_url: ${{ secrets.DISCORD_WEBHOOK }}
+          status: failure
+          title: "❌ Daily Bitcoin Model Training FAILED"
+          description: |
+            Training pipeline encountered an error.
+            
+            Run ID: ${{ github.run_number }}
+            Check GitHub Actions logs for details.
+
   # ==================== CLEANUP OLD ARTIFACTS ====================
   cleanup-old-artifacts:
     name: Cleanup Old Artifacts

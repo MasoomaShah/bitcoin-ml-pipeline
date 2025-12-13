@@ -109,23 +109,36 @@ def load_latest_model():
         return None, None, None, None, None
 
 
-@st.cache_data
+@st.cache_data(ttl=3600)  # Cache for 1 hour to prevent constant reloads
 def load_bitcoin_data():
-    """Load Bitcoin historical data"""
+    """Load Bitcoin historical data - returns both raw and processed data"""
     try:
         # Try to load from API first
         from src.fetch_alpha_vantage import fetch_crypto_with_indicators
         from src.preprocess_bitcoin import preprocess_bitcoin_data
         
-        df = fetch_crypto_with_indicators(
+        df_raw = fetch_crypto_with_indicators(
             symbol='BTC',
-            market='USD',
-            api_key=os.getenv('ALPHA_VANTAGE_API_KEY', 'demo')
+            market='USD'
         )
         
-        if df is not None and not df.empty:
-            df_processed = preprocess_bitcoin_data(df)
-            return df_processed
+        if df_raw is not None and not df_raw.empty:
+            # Ensure consistent sorting by date
+            if 'date' in df_raw.columns:
+                df_raw = df_raw.sort_values('date').reset_index(drop=True)
+            
+            # Keep raw data for visualization
+            # Process data for predictions
+            df_processed, _ = preprocess_bitcoin_data(df_raw.copy(), scaler=None, drop_date=False)
+            
+            # Clean infinity and NaN values with consistent median calculation
+            for col in df_processed.select_dtypes(include=[np.number]).columns:
+                # Calculate median once to ensure consistency
+                col_median = df_processed[col].replace([np.inf, -np.inf], np.nan).median()
+                df_processed[col] = df_processed[col].replace([np.inf, -np.inf], col_median)
+                df_processed[col] = df_processed[col].fillna(col_median)
+            
+            return df_raw, df_processed
         
     except Exception as e:
         st.warning(f"Could not fetch live data: {e}")
@@ -134,19 +147,31 @@ def load_bitcoin_data():
     data_files = list(Path("data/processed").glob("*.csv"))
     if data_files:
         latest_file = max(data_files, key=lambda x: x.stat().st_mtime)
-        return pd.read_csv(latest_file)
+        df = pd.read_csv(latest_file)
+        return df, df  # Return same for both if from file
     
-    return None
+    return None, None
 
 
 def create_price_chart(df, predictions=None):
     """Create interactive price chart with predictions"""
     fig = go.Figure()
     
+    # Determine the price column name
+    price_col = None
+    for col_name in ['close', 'Close', 'price', 'Price']:
+        if col_name in df.columns:
+            price_col = col_name
+            break
+    
+    if price_col is None:
+        st.error(f"Could not find price column. Available columns: {df.columns.tolist()}")
+        return None
+    
     # Historical prices
     fig.add_trace(go.Scatter(
-        x=df['timestamp'] if 'timestamp' in df.columns else df.index,
-        y=df['close'],
+        x=df['timestamp'] if 'timestamp' in df.columns else (df['date'] if 'date' in df.columns else df.index),
+        y=df[price_col],
         mode='lines',
         name='BTC Price',
         line=dict(color='#FF6B35', width=2)
@@ -154,12 +179,22 @@ def create_price_chart(df, predictions=None):
     
     # Add predictions if available
     if predictions is not None:
+        # Get the correct date/time column
+        if 'date' in df.columns:
+            last_date = df['date'].iloc[-1]
+        elif 'timestamp' in df.columns:
+            last_date = df['timestamp'].iloc[-1]
+        else:
+            last_date = df.index[-1]
+        
+        # Show both current and predicted price
         fig.add_trace(go.Scatter(
-            x=[df['timestamp'].iloc[-1] if 'timestamp' in df.columns else df.index[-1]],
-            y=[predictions['predicted_price']],
-            mode='markers',
-            name='Predicted Price',
-            marker=dict(size=15, color='#4ECDC4', symbol='star')
+            x=[last_date, last_date],
+            y=[predictions['current_price'], predictions['predicted_price']],
+            mode='markers+lines',
+            name='Prediction',
+            line=dict(color='#4ECDC4', width=3, dash='dash'),
+            marker=dict(size=12, color=['#FF6B35', '#4ECDC4'], symbol=['circle', 'star'])
         ))
     
     fig.update_layout(
@@ -195,11 +230,13 @@ def create_feature_importance_chart(features, values):
     return fig
 
 
-def make_predictions(clf_model, reg_model, scaler, features, feature_columns):
+def make_predictions(clf_model, reg_model, scaler, features, feature_columns, current_price):
     """Make predictions using the models"""
     try:
         # Prepare feature vector
         X = features[feature_columns].values.reshape(1, -1)
+        # Clean any infinity or NaN values
+        X = np.nan_to_num(X, nan=0.0, posinf=0.0, neginf=0.0)
         X_scaled = scaler.transform(X)
         
         # Classification prediction (Up/Down)
@@ -210,7 +247,6 @@ def make_predictions(clf_model, reg_model, scaler, features, feature_columns):
         price_change_pred = reg_model.predict(X_scaled)[0]
         
         # Calculate predicted price
-        current_price = features['close'].values[0]
         predicted_price = current_price * (1 + price_change_pred)
         
         return {
@@ -240,7 +276,15 @@ def main():
         
         auto_refresh = st.checkbox("Auto-refresh data", value=False)
         if auto_refresh:
-            st.info("Data refreshes every 60 seconds")
+            st.success("✅ Auto-refresh ENABLED - Updates every 60 seconds")
+            # Show countdown
+            refresh_placeholder = st.empty()
+            import time
+            current_time = int(time.time()) % 60
+            seconds_until_refresh = 60 - current_time
+            refresh_placeholder.info(f"⏱️ Next refresh in ~{seconds_until_refresh} seconds")
+        else:
+            st.warning("⚠️ Auto-refresh DISABLED - Data is cached")
         
         show_technical = st.checkbox("Show technical indicators", value=True)
         show_raw_data = st.checkbox("Show raw data", value=False)
@@ -264,31 +308,47 @@ def main():
     # Load model and data
     with st.spinner("Loading models and data..."):
         clf_model, reg_model, scaler, feature_columns, metadata = load_latest_model()
-        df = load_bitcoin_data()
+        df_raw, df_processed = load_bitcoin_data()
     
-    if clf_model is None or df is None:
+    if clf_model is None or df_raw is None or df_processed is None:
         st.error("❌ Could not load models or data. Please train models first.")
         st.code("python src/train_with_feature_store.py")
         return
     
+    # Show data timestamp
+    from datetime import datetime
+    if 'date' in df_raw.columns:
+        last_data_time = df_raw['date'].iloc[-1]
+        st.info(f"📅 Latest data: {last_data_time} | Loaded at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    
     # Model info
     col1, col2, col3, col4 = st.columns(4)
     with col1:
-        st.metric("Model Version", metadata.get('version', 'Unknown')[:16])
+        version = metadata.get('model_version', 'Unknown')
+        st.metric("Model Version", version[-16:] if version != 'Unknown' else version)
     with col2:
-        st.metric("Training Date", metadata.get('timestamp', 'Unknown')[:10])
+        created_at = metadata.get('created_at', 'Unknown')
+        st.metric("Training Date", created_at[:10] if created_at != 'Unknown' else created_at)
     with col3:
-        st.metric("Classification Accuracy", f"{metadata.get('classification_accuracy', 0)*100:.1f}%")
+        clf_metrics = metadata.get('classification_metrics', {})
+        clf_acc = clf_metrics.get('accuracy', 0)
+        st.metric("Classification Accuracy", f"{clf_acc*100:.1f}%")
     with col4:
-        st.metric("Regression RMSE", f"{metadata.get('regression_rmse', 0):.4f}")
+        reg_metrics = metadata.get('regression_metrics', {})
+        reg_rmse = reg_metrics.get('rmse', 0)
+        st.metric("Regression RMSE", f"{reg_rmse:.4f}")
     
     st.divider()
     
     # Get latest features for prediction
-    latest_features = df.tail(1).copy()
+    latest_features = df_processed.tail(1).copy()
+    
+    # Get current price from raw data
+    price_col = 'Close' if 'Close' in df_raw.columns else 'close' if 'close' in df_raw.columns else 'price'
+    current_price = df_raw[price_col].iloc[-1]
     
     # Make predictions
-    predictions = make_predictions(clf_model, reg_model, scaler, latest_features, feature_columns)
+    predictions = make_predictions(clf_model, reg_model, scaler, latest_features, feature_columns, current_price)
     
     if predictions:
         # Prediction display
@@ -332,32 +392,33 @@ def main():
     
     # Price chart
     st.subheader("📈 Price History & Prediction")
-    price_chart = create_price_chart(df.tail(100), predictions)
-    st.plotly_chart(price_chart, use_container_width=True)
+    price_chart = create_price_chart(df_raw.tail(100), predictions)
+    if price_chart:
+        st.plotly_chart(price_chart, use_container_width=True)
     
     # Technical indicators
-    if show_technical and 'rsi' in df.columns:
+    if show_technical and 'RSI' in df_raw.columns:
         st.subheader("📊 Technical Indicators")
         
         col1, col2, col3, col4 = st.columns(4)
         
         with col1:
-            rsi_value = df['rsi'].iloc[-1]
+            rsi_value = df_raw['RSI'].iloc[-1]
             rsi_status = "Overbought" if rsi_value > 70 else "Oversold" if rsi_value < 30 else "Neutral"
             st.metric("RSI", f"{rsi_value:.2f}", delta=rsi_status)
         
         with col2:
-            if 'macd' in df.columns:
-                st.metric("MACD", f"{df['macd'].iloc[-1]:.2f}")
+            if 'MACD' in df_raw.columns:
+                st.metric("MACD", f"{df_raw['MACD'].iloc[-1]:.2f}")
         
         with col3:
-            if 'bb_upper' in df.columns and 'bb_lower' in df.columns:
-                bb_width = df['bb_upper'].iloc[-1] - df['bb_lower'].iloc[-1]
+            if 'BB_upper' in df_raw.columns and 'BB_lower' in df_raw.columns:
+                bb_width = df_raw['BB_upper'].iloc[-1] - df_raw['BB_lower'].iloc[-1]
                 st.metric("BB Width", f"{bb_width:.2f}")
         
         with col4:
-            if 'volume' in df.columns:
-                st.metric("Volume", f"{df['volume'].iloc[-1]:,.0f}")
+            if 'Volume' in df_raw.columns:
+                st.metric("Volume", f"{df_raw['Volume'].iloc[-1]:,.0f}")
     
     # Feature importance (if available in metadata)
     if 'feature_importance' in metadata:
@@ -370,7 +431,7 @@ def main():
     # Raw data
     if show_raw_data:
         st.subheader("📋 Raw Data")
-        st.dataframe(df.tail(20), use_container_width=True)
+        st.dataframe(df_raw.tail(20), use_container_width=True)
     
     # Footer
     st.divider()
@@ -385,6 +446,8 @@ def main():
     if auto_refresh:
         import time
         time.sleep(60)
+        # Clear cache before rerun to fetch fresh data
+        st.cache_data.clear()
         st.rerun()
 
 

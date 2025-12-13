@@ -1,0 +1,29 @@
+{
+  "features": {
+    "Open": 96234.50,
+    "High": 97850.25,
+    "Low": 95120.80,
+    "Close": 96500.00,
+    "Volume": 28500000,
+    "SMA_7": 95800.00,
+    "SMA_14": 94500.00,
+    "SMA_30": 92000.00,
+    "EMA_7": 96200.00,
+    "EMA_14": 95500.00,
+    "momentum_7": 1700,
+    "momentum_14": 3500,
+    "momentum_30": 5500,
+    "volatility_7": 850,
+    "volatility_14": 1300,
+    "RSI": 68.5,
+    "MACD": 280,
+    "MACD_signal": 220,
+    "BB_middle": 96000,
+    "BB_upper": 98000,
+    "BB_lower": 94000,
+    "BB_width": 4000,
+    "volume_SMA_7": 27000000,
+    "volume_change": 0.055
+  },
+  "current_price": 96500
+}

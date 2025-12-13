@@ -1,0 +1,469 @@
+\chapter{Prefect Workflow Orchestration}
+\label{ch:prefect}
+
+\section{Overview}
+
+Prefect 2.0 is used to orchestrate the entire ML pipeline, providing task scheduling, error handling, retries, and comprehensive logging.
+
+\section{Prefect Architecture}
+
+\subsection{Core Concepts}
+
+\begin{itemize}
+    \item \textbf{Flow:} A collection of tasks and their relationships
+    \item \textbf{Task:} An individual unit of work
+    \item \textbf{Run:} A single execution of a flow
+    \item \textbf{Deployment:} A flow packaged with schedule and config
+    \item \textbf{Work Queue:} A queue for distributing work to agents
+\end{itemize}
+
+\subsection{Task Dependencies Graph}
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[scale=0.9, node distance=2.2cm]
+    \node[draw, fill=blue!30, rounded rectangle, minimum width=2cm] (1) at (3, 10) {Start};
+    
+    \node[draw, fill=green!30, minimum width=2cm, minimum height=0.7cm] (2) at (3, 8.5) {Fetch Data};
+    \node[draw, fill=green!30, minimum width=2cm, minimum height=0.7cm] (3) at (3, 7) {Validate Data};
+    
+    \node[draw, fill=yellow!30, minimum width=2cm, minimum height=0.7cm] (4) at (1, 5) {Engineer};
+    \node[draw, fill=yellow!30, minimum width=2cm, minimum height=0.7cm] (5) at (3, 5) {Preprocess};
+    \node[draw, fill=yellow!30, minimum width=2cm, minimum height=0.7cm] (6) at (5, 5) {Split Data};
+    
+    \node[draw, fill=orange!30, minimum width=2cm, minimum height=0.7cm] (7) at (1, 3) {Train Clf};
+    \node[draw, fill=orange!30, minimum width=2cm, minimum height=0.7cm] (8) at (3, 3) {Train Reg};
+    \node[draw, fill=orange!30, minimum width=2cm, minimum height=0.7cm] (9) at (5, 3) {Train DL};
+    
+    \node[draw, fill=purple!30, minimum width=2cm, minimum height=0.7cm] (10) at (2, 1) {Evaluate};
+    \node[draw, fill=purple!30, minimum width=2cm, minimum height=0.7cm] (11) at (4, 1) {Version};
+    
+    \node[draw, fill=red!30, rounded rectangle, minimum width=2cm] (12) at (3, -1) {End};
+    
+    \draw[->] (1) -- (2);
+    \draw[->] (2) -- (3);
+    \draw[->] (3) -- (4);
+    \draw[->] (3) -- (5);
+    \draw[->] (3) -- (6);
+    \draw[->] (4) -- (7);
+    \draw[->] (5) -- (8);
+    \draw[->] (6) -- (9);
+    \draw[->] (7) -- (10);
+    \draw[->] (8) -- (10);
+    \draw[->] (9) -- (10);
+    \draw[->] (10) -- (11);
+    \draw[->] (11) -- (12);
+\end{tikzpicture}
+\caption{Prefect Task Dependency Graph}
+\label{fig:prefect_dag}
+\end{figure}
+
+\section{Main ML Pipeline Flow}
+
+\subsection{Flow Definition}
+
+\begin{lstlisting}[language=Python, caption={Prefect ML Pipeline Definition (Simplified)}]
+from prefect import flow, task
+from prefect.tasks.prefect_orm import get_run_context
+import pandas as pd
+from src.fetch_bitcoin_data import fetch_bitcoin_data
+from src.preprocess_bitcoin import preprocess_bitcoin_data
+from src.train_all_models import train_all_models
+
+@task(retries=3, retry_delay_seconds=30)
+def fetch_data_task(days: int = 365) -> pd.DataFrame:
+    """Fetch Bitcoin data from CoinGecko API"""
+    print(f"Fetching {days} days of Bitcoin data...")
+    df = fetch_bitcoin_data(days=days)
+    print(f"✓ Fetched {len(df)} records")
+    return df
+
+@task(retries=2)
+def validate_data_task(df: pd.DataFrame) -> bool:
+    """Validate data quality"""
+    assert len(df) > 0, "Empty dataframe"
+    assert df['price'].notna().sum() > 0, "No prices"
+    print(f"✓ Data validation passed ({len(df)} records)")
+    return True
+
+@task
+def engineer_features_task(df: pd.DataFrame) -> pd.DataFrame:
+    """Engineer 24 technical indicators"""
+    print("Engineering features...")
+    df_features = engineer_features(df)
+    print(f"✓ Engineered {df_features.shape[1]} features")
+    return df_features
+
+@task
+def preprocess_task(df: pd.DataFrame) -> tuple:
+    """Preprocess data"""
+    print("Preprocessing...")
+    df_processed, scaler = preprocess_bitcoin_data(df)
+    print(f"✓ Preprocessing complete: {df_processed.shape}")
+    return df_processed, scaler
+
+@task
+def split_data_task(df: pd.DataFrame, test_size: float = 0.2) -> tuple:
+    """Temporal train/test split"""
+    split_idx = int(len(df) * (1 - test_size))
+    X_train = df.iloc[:split_idx]
+    X_test = df.iloc[split_idx:]
+    print(f"✓ Split: {len(X_train)} train, {len(X_test)} test")
+    return X_train, X_test
+
+@task(retries=2, retry_delay_seconds=60)
+def train_models_task(X_train, X_test, y_train_clf, y_train_reg) -> dict:
+    """Train all models (classification, regression, deep learning)"""
+    print("Training models...")
+    
+    results = train_all_models(
+        X_train, X_test,
+        y_train_clf, y_train_reg,
+        epochs=100, batch_size=32
+    )
+    
+    print(f"✓ Trained {len(results)} models")
+    return results
+
+@task
+def evaluate_models_task(results: dict) -> dict:
+    """Evaluate and rank models"""
+    print("Evaluating models...")
+    
+    best_model = max(results.items(), 
+                    key=lambda x: x[1]['metrics']['accuracy'])
+    
+    print(f"✓ Best model: {best_model[0]} ({best_model[1]['metrics']['accuracy']:.2%})")
+    return results
+
+@task
+def version_models_task(results: dict, models: dict) -> str:
+    """Version and save models to registry"""
+    print("Versioning models...")
+    
+    version_id = f"v{datetime.now().isoformat().replace(':', '')}"
+    
+    # Save to manifest
+    manifest = {
+        "active_version": version_id,
+        "versions": {
+            version_id: {
+                "metrics": results,
+                "created_at": datetime.now().isoformat()
+            }
+        }
+    }
+    
+    with open("models/manifest.json", "w") as f:
+        json.dump(manifest, f, indent=2)
+    
+    print(f"✓ Versioned models: {version_id}")
+    return version_id
+
+@flow(name="bitcoin-ml-pipeline")
+def ml_training_flow(data_path: str = "data/raw/bitcoin_timeseries.csv"):
+    """
+    Complete ML training pipeline with orchestration
+    
+    Steps:
+    1. Fetch Bitcoin data
+    2. Validate data quality
+    3. Engineer features
+    4. Preprocess data
+    5. Split into train/test
+    6. Train all models (in parallel)
+    7. Evaluate performance
+    8. Version best models
+    """
+    
+    print("\n" + "="*60)
+    print("🚀 BITCOIN ML TRAINING PIPELINE")
+    print("="*60 + "\n")
+    
+    # Data pipeline
+    df_raw = fetch_data_task(days=365)
+    is_valid = validate_data_task(df_raw)
+    
+    if not is_valid:
+        raise ValueError("Data validation failed")
+    
+    df_features = engineer_features_task(df_raw)
+    df_processed, scaler = preprocess_task(df_features)
+    X_train, X_test = split_data_task(df_processed, test_size=0.2)
+    
+    # Create targets
+    y_train_clf = (df_processed['price'].shift(-1) > df_processed['price']).astype(int)
+    y_train_reg = df_processed['price'].pct_change()
+    
+    # Training pipeline
+    results = train_models_task(X_train, X_test, y_train_clf, y_train_reg)
+    evaluated = evaluate_models_task(results)
+    version_id = version_models_task(evaluated, models={})
+    
+    print("\n" + "="*60)
+    print(f"✅ PIPELINE COMPLETE - Models versioned as {version_id}")
+    print("="*60 + "\n")
+    
+    return {"version": version_id, "metrics": evaluated}
+
+if __name__ == "__main__":
+    # Execute flow
+    state = ml_training_flow(data_path="data/raw/bitcoin_timeseries.csv")
+    print(state)
+\end{lstlisting}
+
+\section{Task Specifications}
+
+\subsection{Task 1: Fetch Data}
+
+\begin{table}[H]
+\centering
+\caption{Task: Fetch Data}
+\begin{tabularx}{\textwidth}{lX}
+\toprule
+\textbf{Parameter} & \textbf{Value} \\
+\midrule
+Name & fetch\_data\_task \\
+Retries & 3 (exponential backoff) \\
+Retry Delay & 30 seconds \\
+Timeout & 300 seconds (5 minutes) \\
+Input & days (int, default=365) \\
+Output & pd.DataFrame (OHLCV data) \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\subsection{Task 2: Validate Data}
+
+\begin{enumerate}
+    \item Check non-empty dataframe
+    \item Verify no missing price values
+    \item Validate price ranges (> 0)
+    \item Check date ordering
+\end{enumerate}
+
+\subsection{Task 3: Engineer Features}
+
+\begin{enumerate}
+    \item Calculate 24 technical indicators
+    \item Compute temporal features
+    \item Drop invalid rows (NaN)
+    \item Return feature matrix
+\end{enumerate}
+
+\subsection{Task 4: Preprocess}
+
+\begin{enumerate}
+    \item Standardize features (StandardScaler)
+    \item Handle missing values
+    \item Return (processed data, scaler)
+\end{enumerate}
+
+\subsection{Task 5: Split Data}
+
+\begin{enumerate}
+    \item Temporal split (preserving order)
+    \item Default 80/20 ratio
+    \item Return (X\_train, X\_test)
+\end{enumerate}
+
+\subsection{Task 6: Train Models}
+
+\begin{itemize}
+    \item \textbf{Parallel:} Classification, Regression, Deep Learning
+    \item \textbf{Retries:} 2 (OOM recovery)
+    \item \textbf{Timeout:} 1800 seconds (30 minutes)
+    \item \textbf{Returns:} Dict of results
+\end{itemize}
+
+\subsection{Task 7: Evaluate}
+
+\begin{enumerate}
+    \item Compute metrics on test set
+    \item Compare with baseline
+    \item Detect data drift
+    \item Return evaluation results
+\end{enumerate}
+
+\subsection{Task 8: Version Models}
+
+\begin{enumerate}
+    \item Create version ID (timestamp)
+    \item Save to manifest.json
+    \item Upload model artifacts
+    \item Return version string
+\end{enumerate}
+
+\section{Error Handling}
+
+\subsection{Retry Strategy}
+
+\begin{lstlisting}[language=Python, caption={Retry Configuration}]
+@task(
+    retries=3,                      # Retry up to 3 times
+    retry_delay_seconds=30,         # Wait 30s between retries
+    retry_jitter=True,              # Add randomness (0-10s)
+    timeout_seconds=300             # Fail after 5 minutes
+)
+def fetch_data_task(days: int = 365):
+    try:
+        return fetch_bitcoin_data(days=days)
+    except requests.exceptions.Timeout:
+        raise  # Will trigger retry
+    except requests.exceptions.ConnectionError:
+        raise  # Will trigger retry
+    except Exception as e:
+        # Log unexpected errors
+        logger.error(f"Unexpected error: {e}")
+        raise  # Re-raise for Prefect to handle
+\end{lstlisting}
+
+\subsection{Exception Handling}
+
+\begin{table}[H]
+\centering
+\caption{Exception Handling Strategy}
+\begin{tabularx}{\textwidth}{lXc}
+\toprule
+\textbf{Exception} & \textbf{Action} & \textbf{Retries} \\
+\midrule
+Connection Error & Retry with backoff & 3 \\
+Timeout & Retry with delay & 3 \\
+OOM Error & Retry with smaller batch & 2 \\
+Data Validation Error & Fail immediately & 0 \\
+Model Training Error & Retry once & 1 \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Deployment Configuration}
+
+\subsection{Deployment Manifest}
+
+\begin{lstlisting}[language=yaml, caption={Prefect Deployment Config}]
+deployments:
+  - name: bitcoin-ml-daily
+    flow_name: bitcoin-ml-pipeline
+    schedule:
+      cron: '0 2 * * *'  # Daily at 2 AM UTC
+    parameters:
+      data_path: data/raw/bitcoin_timeseries.csv
+    work_queue: default
+    tags:
+      - production
+      - daily
+    description: Daily model retraining with latest Bitcoin data
+    
+  - name: bitcoin-ml-manual
+    flow_name: bitcoin-ml-pipeline
+    schedule: null  # Manual trigger only
+    parameters:
+      data_path: data/raw/bitcoin_timeseries.csv
+    work_queue: default
+    tags:
+      - manual
+    description: Manual model training execution
+\end{lstlisting}
+
+\subsection{Execution Modes}
+
+\subsubsection{Mode 1: Local Execution}
+\begin{lstlisting}[language=bash]
+python prefect/flows/ml_pipeline.py
+\end{lstlisting}
+
+\subsubsection{Mode 2: Prefect Server}
+\begin{lstlisting}[language=bash]
+# Start Prefect server
+prefect server start
+
+# Deploy flow
+prefect deployment build prefect/flows/ml_pipeline.py:ml_training_flow -n bitcoin-ml-daily
+
+# Execute via server
+prefect deployment run bitcoin-ml-pipeline/bitcoin-ml-daily
+\end{lstlisting}
+
+\subsubsection{Mode 3: Prefect Cloud}
+\begin{lstlisting}[language=bash]
+# Authenticate with Prefect Cloud
+prefect cloud login
+
+# Deploy to cloud
+prefect deployment push prefect/flows/ml_pipeline.py:ml_training_flow -n bitcoin-ml-daily
+
+# Trigger from cloud
+prefect deployment run bitcoin-ml-pipeline/bitcoin-ml-daily
+\end{lstlisting}
+
+\section{Monitoring \& Observability}
+
+\subsection{Flow Runs Dashboard}
+
+Prefect Server provides a web UI showing:
+\begin{itemize}
+    \item Flow run history
+    \item Task execution status
+    \item Execution logs
+    \item Performance metrics
+\end{itemize}
+
+\subsection{Logging}
+
+\begin{lstlisting}[language=Python, caption={Structured Logging}]
+from prefect import get_run_logger
+
+@task
+def my_task():
+    logger = get_run_logger()
+    logger.info("Task started")
+    logger.debug(f"Processing {n} records")
+    logger.warning("Potential issue detected")
+    logger.error("Error occurred")
+\end{lstlisting}
+
+\subsection{Notifications}
+
+Prefect can send notifications on:
+\begin{itemize}
+    \item Flow completion
+    \item Task failures
+    \item SLA violations
+    \item Custom events
+\end{itemize}
+
+\section{Performance Characteristics}
+
+\begin{table}[H]
+\centering
+\caption{Pipeline Performance}
+\begin{tabularx}{\textwidth}{lccc}
+\toprule
+\textbf{Stage} & \textbf{Duration} & \textbf{CPU} & \textbf{Memory} \\
+\midrule
+Fetch Data & 2-3 min & Low & Low \\
+Validate Data & 30 sec & Low & Low \\
+Engineer Features & 1-2 min & Medium & Medium \\
+Preprocess & 1-2 min & Medium & Medium \\
+Split Data & 30 sec & Low & Low \\
+Train Models & 10-15 min & High & High \\
+Evaluate & 2-3 min & Medium & Medium \\
+Version & 1 min & Low & Low \\
+\midrule
+\textbf{Total} & \textbf{18-30 min} & \textbf{} & \textbf{} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Summary}
+
+Prefect provides:
+\begin{itemize}
+    \item ✅ Task orchestration with dependencies
+    \item ✅ Automatic retry logic with exponential backoff
+    \item ✅ Comprehensive logging and monitoring
+    \item ✅ Scheduled and manual execution
+    \item ✅ Error handling and recovery
+    \item ✅ Cloud-ready infrastructure
+\end{itemize}
+
