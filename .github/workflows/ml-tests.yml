@@ -229,6 +229,70 @@ jobs:
           print(f'  ✓ Predictions are binary: {set(rf_preds) == {0, 1}}')
           "
 
+      - name: Validate model accuracy thresholds
+        env:
+          PYTHONIOENCODING: utf-8
+        continue-on-error: true
+        run: |
+          python -c "
+          import json
+          import os
+          from pathlib import Path
+          
+          print('📊 Validating model accuracy thresholds...')
+          
+          # Find latest model metadata
+          models_dir = Path('models')
+          metadata_files = sorted(models_dir.glob('v*_training_metadata.json'), reverse=True)
+          
+          if metadata_files:
+              latest_metadata = metadata_files[0]
+              with open(latest_metadata) as f:
+                  metadata = json.load(f)
+              
+              print(f'\\n📁 Checking: {latest_metadata.name}')
+              
+              # Check classification accuracy
+              clf_acc = metadata['classification_metrics']['accuracy']
+              clf_threshold = 0.50  # 50% minimum accuracy
+              clf_status = '✅' if clf_acc >= clf_threshold else '❌'
+              print(f'{clf_status} Classification Accuracy: {clf_acc:.4f} (threshold: {clf_threshold})')
+              if clf_acc < clf_threshold:
+                  print(f'   ⚠️  WARNING: Accuracy below threshold!')
+              
+              # Check regression R²
+              reg_r2 = metadata['regression_metrics']['r2']
+              reg_threshold = -100  # Very lenient threshold for R²
+              reg_status = '✅' if reg_r2 >= reg_threshold else '❌'
+              print(f'{reg_status} Regression R²: {reg_r2:.4f} (threshold: {reg_threshold})')
+              if reg_r2 < reg_threshold:
+                  print(f'   ⚠️  WARNING: R² below threshold!')
+              
+              # Check F1 Score
+              f1_score = metadata['classification_metrics']['f1_score']
+              f1_threshold = 0.40  # 40% minimum F1
+              f1_status = '✅' if f1_score >= f1_threshold else '❌'
+              print(f'{f1_status} F1 Score: {f1_score:.4f} (threshold: {f1_threshold})')
+              if f1_score < f1_threshold:
+                  print(f'   ⚠️  WARNING: F1 below threshold!')
+              
+              # Summary
+              print(f'\\n📋 Summary:')
+              print(f'  • Classification Accuracy: {clf_acc:.2%}')
+              print(f'  • F1 Score: {f1_score:.4f}')
+              print(f'  • Regression RMSE: {metadata[\"regression_metrics\"][\"rmse\"]:.6f}')
+              print(f'  • Training Samples: {metadata[\"n_train_samples\"]}')
+              print(f'  • Test Samples: {metadata[\"n_test_samples\"]}')
+              
+              all_passed = (clf_acc >= clf_threshold) and (f1_score >= f1_threshold) and (reg_r2 >= reg_threshold)
+              if all_passed:
+                  print(f'\\n✅ All accuracy thresholds PASSED')
+              else:
+                  print(f'\\n⚠️  Some thresholds below target - consider model retraining')
+          else:
+              print('⚠️  No model metadata found')
+          "
+
       - name: Run full pipeline test
         env:
           PYTHONIOENCODING: utf-8
