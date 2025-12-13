@@ -3,10 +3,6 @@ name: ML Tests - Model Validation
 on:
   push:
     branches: [ main, develop ]
-    paths:
-      - 'src/**'
-      - 'tests/**'
-      - '.github/workflows/ml-tests.yml'
   pull_request:
     branches: [ main, develop ]
 
