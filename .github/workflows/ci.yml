@@ -161,6 +161,17 @@ jobs:
         if: always()
         run: pkill -f "uvicorn" || true
 
+      - name: Check Discord secret is set
+        run: |
+          if [ -z "${{ secrets.DISCORD_WEBHOOK }}" ]; then
+            echo "❌ DISCORD_WEBHOOK secret is not set!"
+            echo "Go to: Settings → Secrets and variables → Actions"
+            echo "Add a new repository secret named: DISCORD_WEBHOOK"
+            exit 1
+          else
+            echo "✅ DISCORD_WEBHOOK secret is set"
+          fi
+
       - name: Send Discord notification on CI success
         if: success()
         uses: sarisia/actions-status-discord@v1
