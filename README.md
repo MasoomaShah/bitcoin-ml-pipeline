@@ -464,5 +464,6 @@ gcloud run deploy bitcoin-ml-api \
 
 **Author:** Masooma Shah  
 **Status:** Production Ready ✅  
-**Last Updated:** December 2025  
+**Last Updated:** December 13, 2025  
+**Discord Notifications:** Enabled 🔔  
 **Report:** [See IEEE-format technical report](report/main.pdf)
