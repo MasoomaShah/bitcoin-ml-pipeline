@@ -447,3 +447,68 @@ jobs:
           print(f'\n✓ Best performing model: {best_model}')
           print(f'  Mean Accuracy: {results[best_model][\"mean_accuracy\"]:.4f}')
           "
+
+  # ==================== SEND NOTIFICATIONS ====================
+  notify-ml-tests-completion:
+    name: Send ML Tests Notification
+    runs-on: ubuntu-latest
+    if: always()
+    needs: [data-checks, feature-tests, model-tests, regression-tests, performance-benchmark, drift-detection, model-comparison]
+    steps:
+      - name: Determine ML tests status
+        id: status
+        run: |
+          if [ "${{ needs.model-tests.result }}" == "success" ] || [ "${{ needs.model-tests.result }}" == "skipped" ]; then
+            echo "status=success" >> $GITHUB_OUTPUT
+            echo "TESTS_SUCCESS=true" >> $GITHUB_OUTPUT
+          else
+            echo "status=failure" >> $GITHUB_OUTPUT
+            echo "TESTS_SUCCESS=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Send Discord notification on ML tests success
+        if: steps.status.outputs.TESTS_SUCCESS == 'true'
+        uses: sarisia/actions-status-discord@v1
+        with:
+          webhook_url: ${{ secrets.DISCORD_WEBHOOK }}
+          status: success
+          title: "✅ ML Tests Pipeline Completed Successfully"
+          description: |
+            ✓ Data quality checks passed
+            ✓ Feature engineering tests passed
+            ✓ Model training & validation passed
+            ✓ Regression tests passed
+            ✓ Performance benchmarking passed
+            ✓ Drift detection passed
+            ✓ Model comparison passed
+            
+            All ML validation checks passed!
+            Commit: ${{ github.sha }}
+            Run: ${{ github.run_number }}
+          color: 3066993
+        continue-on-error: true
+
+      - name: Send Discord notification on ML tests failure
+        if: steps.status.outputs.TESTS_SUCCESS == 'false'
+        uses: sarisia/actions-status-discord@v1
+        with:
+          webhook_url: ${{ secrets.DISCORD_WEBHOOK }}
+          status: failure
+          title: "❌ ML Tests Pipeline Failed"
+          description: |
+            One or more ML validation tests failed.
+            
+            Data Checks: ${{ needs.data-checks.result }}
+            Feature Tests: ${{ needs.feature-tests.result }}
+            Model Tests: ${{ needs.model-tests.result }}
+            Regression Tests: ${{ needs.regression-tests.result }}
+            Performance Benchmark: ${{ needs.performance-benchmark.result }}
+            Drift Detection: ${{ needs.drift-detection.result }}
+            Model Comparison: ${{ needs.model-comparison.result }}
+            
+            Check logs:
+            https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+            
+            Run: ${{ github.run_number }}
+          color: 15158332
+        continue-on-error: true
