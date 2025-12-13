@@ -172,28 +172,61 @@ jobs:
             echo "✅ DISCORD_WEBHOOK secret is set"
           fi
 
+  # ==================== SEND NOTIFICATIONS ====================
+  notify-ci-completion:
+    name: Send CI Notification
+    runs-on: ubuntu-latest
+    if: always()
+    needs: [code-quality, unit-tests, data-validation, api-integration]
+    steps:
+      - name: Determine CI status
+        id: status
+        run: |
+          if [ "${{ needs.unit-tests.result }}" == "success" ] && [ "${{ needs.code-quality.result }}" == "success" ]; then
+            echo "status=success" >> $GITHUB_OUTPUT
+            echo "CI_SUCCESS=true" >> $GITHUB_OUTPUT
+          else
+            echo "status=failure" >> $GITHUB_OUTPUT
+            echo "CI_SUCCESS=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Send Discord notification on CI success
-        if: success()
+        if: steps.status.outputs.CI_SUCCESS == 'true'
         uses: sarisia/actions-status-discord@v1
         with:
           webhook_url: ${{ secrets.DISCORD_WEBHOOK }}
           status: success
           title: "✅ CI Pipeline Passed"
           description: |
-            Code quality checks ✓
-            Unit tests ✓
-            API tests ✓
+            ✓ Code quality checks passed
+            ✓ Unit tests passed
+            ✓ Data validation passed
+            ✓ API integration tests passed
             
-            All workflows successful!
+            All checks successful!
+            Commit: ${{ github.sha }}
+            Run: ${{ github.run_number }}
+          color: 3066993
+        continue-on-error: true
 
       - name: Send Discord notification on CI failure
-        if: failure()
+        if: steps.status.outputs.CI_SUCCESS == 'false'
         uses: sarisia/actions-status-discord@v1
         with:
           webhook_url: ${{ secrets.DISCORD_WEBHOOK }}
           status: failure
           title: "❌ CI Pipeline Failed"
           description: |
-            Check GitHub Actions for detailed error logs.
+            One or more CI checks failed.
+            
+            Code Quality: ${{ needs.code-quality.result }}
+            Unit Tests: ${{ needs.unit-tests.result }}
+            Data Validation: ${{ needs.data-validation.result }}
+            API Tests: ${{ needs.api-integration.result }}
+            
+            Check logs:
+            https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
             
             Run: ${{ github.run_number }}
+          color: 15158332
+        continue-on-error: true

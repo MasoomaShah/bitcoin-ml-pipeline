@@ -297,40 +297,59 @@ jobs:
           echo "Deployment Status: ${{ job.status }}"
           echo "Models deployed successfully!"
 
-      - name: Check Discord secret is set
+  # ==================== SEND NOTIFICATIONS ====================
+  notify-completion:
+    name: Send Completion Notification
+    runs-on: ubuntu-latest
+    if: always()
+    needs: [build-container, train-model, validate-models, security-scan, deploy]
+    steps:
+      - name: Determine workflow status
+        id: status
         run: |
-          if [ -z "${{ secrets.DISCORD_WEBHOOK }}" ]; then
-            echo "❌ DISCORD_WEBHOOK secret is not set!"
-            echo "Go to: Settings → Secrets and variables → Actions"
-            echo "Add a new repository secret named: DISCORD_WEBHOOK"
-            exit 1
+          if [ "${{ needs.deploy.result }}" == "success" ] || [ "${{ needs.deploy.result }}" == "skipped" ]; then
+            echo "status=success" >> $GITHUB_OUTPUT
+            echo "BUILD_SUCCESS=true" >> $GITHUB_OUTPUT
           else
-            echo "✅ DISCORD_WEBHOOK secret is set"
+            echo "status=failure" >> $GITHUB_OUTPUT
+            echo "BUILD_SUCCESS=false" >> $GITHUB_OUTPUT
           fi
 
       - name: Send Discord notification on CD success
-        if: success()
+        if: steps.status.outputs.BUILD_SUCCESS == 'true'
         uses: sarisia/actions-status-discord@v1
         with:
           webhook_url: ${{ secrets.DISCORD_WEBHOOK }}
           status: success
-          title: "✅ CD Pipeline - Build & Deploy Successful"
+          title: "✅ CD Pipeline Completed Successfully"
           description: |
             🐳 Docker image built
+            🤖 Models trained
             📦 Models packaged
-            🚀 Ready for deployment
+            ✅ All validations passed
+            🚀 Deployment complete
             
+            Commit: ${{ github.sha }}
             Run: ${{ github.run_number }}
+          color: 3066993
+        continue-on-error: true
 
       - name: Send Discord notification on CD failure
-        if: failure()
+        if: steps.status.outputs.BUILD_SUCCESS == 'false'
         uses: sarisia/actions-status-discord@v1
         with:
           webhook_url: ${{ secrets.DISCORD_WEBHOOK }}
           status: failure
-          title: "❌ CD Pipeline - Build Failed"
+          title: "❌ CD Pipeline Failed"
           description: |
-            Docker build or deployment failed.
-            Check GitHub Actions for logs.
+            One or more steps failed during the CD pipeline.
             
+            Deploy Status: ${{ needs.deploy.result }}
+            
+            Check GitHub Actions logs for details:
+            https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+            
+            Commit: ${{ github.sha }}
             Run: ${{ github.run_number }}
+          color: 15158332
+        continue-on-error: true

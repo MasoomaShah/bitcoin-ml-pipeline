@@ -365,46 +365,61 @@ jobs:
           echo "Run: ${{ github.run_number }}"
           echo "Check artifacts for detailed reports"
 
-      - name: Check Discord secret is set
+  # ==================== SEND NOTIFICATIONS ====================
+  notify-training-completion:
+    name: Send Training Notification
+    runs-on: ubuntu-latest
+    if: always()
+    needs: [fetch-daily-data, check-data-drift, train-models, track-performance, detect-degradation, summarize-results, cleanup-old-artifacts]
+    steps:
+      - name: Determine training status
+        id: status
         run: |
-          if [ -z "${{ secrets.DISCORD_WEBHOOK }}" ]; then
-            echo "❌ DISCORD_WEBHOOK secret is not set!"
-            echo "Go to: Settings → Secrets and variables → Actions"
-            echo "Add a new repository secret named: DISCORD_WEBHOOK"
-            exit 1
+          if [ "${{ needs.train-models.result }}" == "success" ] || [ "${{ needs.train-models.result }}" == "skipped" ]; then
+            echo "status=success" >> $GITHUB_OUTPUT
+            echo "TRAINING_SUCCESS=true" >> $GITHUB_OUTPUT
           else
-            echo "✅ DISCORD_WEBHOOK secret is set"
+            echo "status=failure" >> $GITHUB_OUTPUT
+            echo "TRAINING_SUCCESS=false" >> $GITHUB_OUTPUT
           fi
 
-      - name: Send Discord notification on success
-        if: success()
+      - name: Send Discord notification on training success
+        if: steps.status.outputs.TRAINING_SUCCESS == 'true'
         uses: sarisia/actions-status-discord@v1
         with:
           webhook_url: ${{ secrets.DISCORD_WEBHOOK }}
           status: success
-          title: "✅ Daily Bitcoin Model Training"
+          title: "✅ Daily Bitcoin Model Training Complete"
           description: |
-            Training completed successfully!
-            
-            📊 Models trained and evaluated
-            📦 Artifacts saved (60 days retention)
+            🤖 Models successfully trained
+            📊 Data validation passed
             📈 Performance metrics logged
+            🔍 Drift detection completed
             
+            📁 Artifacts: 60-day retention
             Run ID: ${{ github.run_number }}
-            Timestamp: ${{ github.event.scheduled_time || 'Manual' }}
+            Time: ${{ github.event.scheduled_time || 'Manual' }}
+          color: 3066993
+        continue-on-error: true
 
-      - name: Send Discord notification on failure
-        if: failure()
+      - name: Send Discord notification on training failure
+        if: steps.status.outputs.TRAINING_SUCCESS == 'false'
         uses: sarisia/actions-status-discord@v1
         with:
           webhook_url: ${{ secrets.DISCORD_WEBHOOK }}
           status: failure
-          title: "❌ Daily Bitcoin Model Training FAILED"
+          title: "❌ Daily Bitcoin Model Training Failed"
           description: |
             Training pipeline encountered an error.
             
+            Train Status: ${{ needs.train-models.result }}
+            
+            Check logs:
+            https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+            
             Run ID: ${{ github.run_number }}
-            Check GitHub Actions logs for details.
+          color: 15158332
+        continue-on-error: true
 
   # ==================== CLEANUP OLD ARTIFACTS ====================
   cleanup-old-artifacts:
