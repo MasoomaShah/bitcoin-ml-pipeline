@@ -322,10 +322,17 @@ jobs:
     needs: [daily-training, track-performance]
     if: always()
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       - name: Generate summary report
         run: |
           python -c "
           from datetime import datetime
+          import os
+          
+          # Create reports directory if it doesn't exist
+          os.makedirs('reports/daily-summaries', exist_ok=True)
           
           summary = f'''
           ╔═══════════════════════════════════════════════════╗
@@ -355,10 +362,26 @@ jobs:
           
           print(summary)
           
-          # Save report
+          # Save report to multiple locations
           with open('/tmp/daily_summary.txt', 'w') as f:
               f.write(summary)
+          
+          # Save to reports directory with timestamp
+          timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+          with open(f'reports/daily-summaries/summary_{timestamp}.txt', 'w') as f:
+              f.write(summary)
+          
+          print(f'✓ Summary saved to reports/daily-summaries/summary_{timestamp}.txt')
           "
+
+      - name: Commit and push daily summary
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add reports/daily-summaries/
+          git commit -m "chore: add daily training summary report" || echo "No new summaries to commit"
+          git push || echo "No changes to push"
+        continue-on-error: true
 
       - name: Upload summary
         uses: actions/upload-artifact@v4
