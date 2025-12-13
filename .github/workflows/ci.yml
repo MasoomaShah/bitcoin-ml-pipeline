@@ -230,3 +230,33 @@ jobs:
             Run: ${{ github.run_number }}
           color: 15158332
         continue-on-error: true
+
+      - name: Fallback curl notification for CI
+        if: always()
+        run: |
+          CI_STATUS="success"
+          if [ "${{ steps.status.outputs.CI_SUCCESS }}" != "true" ]; then
+            CI_STATUS="failure"
+          fi
+          
+          if [ "$CI_STATUS" = "success" ]; then
+            TITLE="✅ CI Pipeline Passed"
+            COLOR="3066993"
+            DESC="Code quality checks passed\nUnit tests passed\nData validation passed\nAPI integration tests passed"
+          else
+            TITLE="❌ CI Pipeline Failed"
+            COLOR="15158332"
+            DESC="Code Quality: ${{ needs.code-quality.result }}\nUnit Tests: ${{ needs.unit-tests.result }}\nData Validation: ${{ needs.data-validation.result }}\nAPI Tests: ${{ needs.api-tests.result }}"
+          fi
+          
+          curl -X POST "${{ secrets.DISCORD_WEBHOOK }}" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"embeds\": [{
+                \"title\": \"$TITLE\",
+                \"description\": \"$DESC\nRun: ${{ github.run_number }}\",
+                \"color\": $COLOR,
+                \"footer\": {\"text\": \"${{ github.repository }}\"}
+              }]
+            }"
+        continue-on-error: true
