@@ -158,3 +158,29 @@ jobs:
       - name: Stop API server
         if: always()
         run: pkill -f "uvicorn" || true
+
+      - name: Send Discord notification on CI success
+        if: success()
+        uses: sarisia/actions-status-discord@v1
+        with:
+          webhook_url: ${{ secrets.DISCORD_WEBHOOK }}
+          status: success
+          title: "✅ CI Pipeline Passed"
+          description: |
+            Code quality checks ✓
+            Unit tests ✓
+            API tests ✓
+            
+            All workflows successful!
+
+      - name: Send Discord notification on CI failure
+        if: failure()
+        uses: sarisia/actions-status-discord@v1
+        with:
+          webhook_url: ${{ secrets.DISCORD_WEBHOOK }}
+          status: failure
+          title: "❌ CI Pipeline Failed"
+          description: |
+            Check GitHub Actions for detailed error logs.
+            
+            Run: ${{ github.run_number }}
