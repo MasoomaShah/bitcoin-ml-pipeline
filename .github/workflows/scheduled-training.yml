@@ -370,12 +370,12 @@ jobs:
     name: Send Training Notification
     runs-on: ubuntu-latest
     if: always()
-    needs: [fetch-daily-data, check-data-drift, train-models, track-performance, detect-degradation, summarize-results, cleanup-old-artifacts]
+    needs: [fetch-daily-data, check-data-drift, daily-training, track-performance, check-degradation, daily-summary]
     steps:
       - name: Determine training status
         id: status
         run: |
-          if [ "${{ needs.train-models.result }}" == "success" ] || [ "${{ needs.train-models.result }}" == "skipped" ]; then
+          if [ "${{ needs.daily-training.result }}" == "success" ] || [ "${{ needs.daily-training.result }}" == "skipped" ]; then
             echo "status=success" >> $GITHUB_OUTPUT
             echo "TRAINING_SUCCESS=true" >> $GITHUB_OUTPUT
           else
@@ -412,7 +412,7 @@ jobs:
           description: |
             Training pipeline encountered an error.
             
-            Train Status: ${{ needs.train-models.result }}
+            Train Status: ${{ needs.daily-training.result }}
             
             Check logs:
             https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}

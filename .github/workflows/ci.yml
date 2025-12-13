@@ -177,7 +177,7 @@ jobs:
     name: Send CI Notification
     runs-on: ubuntu-latest
     if: always()
-    needs: [code-quality, unit-tests, data-validation, api-integration]
+    needs: [code-quality, unit-tests, data-validation, api-tests]
     steps:
       - name: Determine CI status
         id: status
@@ -222,7 +222,7 @@ jobs:
             Code Quality: ${{ needs.code-quality.result }}
             Unit Tests: ${{ needs.unit-tests.result }}
             Data Validation: ${{ needs.data-validation.result }}
-            API Tests: ${{ needs.api-integration.result }}
+            API Tests: ${{ needs.api-tests.result }}
             
             Check logs:
             https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
