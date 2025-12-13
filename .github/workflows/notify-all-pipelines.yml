@@ -1,0 +1,119 @@
+name: 📊 Unified Pipeline Notification
+
+on:
+  workflow_run:
+    workflows: 
+      - "CI - Code Checks & Tests"
+      - "ML Tests - Model Validation"
+      - "CD - Build & Deploy"
+    types: [completed]
+
+jobs:
+  notify-all-pipelines:
+    name: Send Unified Discord Notification
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Download workflow artifacts
+        uses: dawidd6/action-download-artifact@v2
+        continue-on-error: true
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          workflow: ${{ github.event.workflow.name }}
+          run_id: ${{ github.event.workflow_run.id }}
+
+      - name: Check all workflow statuses
+        id: check-status
+        run: |
+          echo "Checking pipeline status..."
+          
+          CI_STATUS="${{ github.event.workflow_run.conclusion }}"
+          
+          if [ "$CI_STATUS" == "success" ]; then
+            EMOJI="✅"
+            STATUS="SUCCESS"
+          elif [ "$CI_STATUS" == "failure" ]; then
+            EMOJI="❌"
+            STATUS="FAILED"
+          else
+            EMOJI="⏳"
+            STATUS="PENDING"
+          fi
+          
+          echo "emoji=$EMOJI" >> $GITHUB_OUTPUT
+          echo "status=$STATUS" >> $GITHUB_OUTPUT
+          echo "workflow=${{ github.event.workflow.name }}" >> $GITHUB_OUTPUT
+
+      - name: Send Discord notification
+        uses: sarisia/actions-status-discord@v1
+        if: always()
+        with:
+          webhook_url: ${{ secrets.DISCORD_WEBHOOK }}
+          status: ${{ job.status }}
+          title: "${{ steps.check-status.outputs.emoji }} ${{ github.event.workflow.name }}"
+          description: |
+            **Workflow**: ${{ github.event.workflow.name }}
+            **Status**: ${{ steps.check-status.outputs.status }}
+            **Conclusion**: ${{ github.event.workflow_run.conclusion }}
+            
+            📊 **Pipeline Details**:
+            • Repository: ${{ github.repository }}
+            • Branch: ${{ github.event.workflow_run.head_branch }}
+            • Commit: `${{ github.event.workflow_run.head_commit.id }}`
+            • Author: ${{ github.event.workflow_run.actor.login }}
+            
+            🔗 **View Details**: [GitHub Actions](${{ github.event.workflow_run.html_url }})
+            
+            ⏱️ Run ID: ${{ github.run_number }}
+          color: >-
+            ${{ 
+              github.event.workflow_run.conclusion == 'success' && '3066993' ||
+              github.event.workflow_run.conclusion == 'failure' && '15158332' ||
+              '10181046'
+            }}
+        continue-on-error: true
+
+      - name: Send fallback curl notification
+        if: always()
+        continue-on-error: true
+        run: |
+          WORKFLOW="${{ github.event.workflow.name }}"
+          STATUS="${{ github.event.workflow_run.conclusion }}"
+          
+          if [ "$STATUS" == "success" ]; then
+            EMOJI="✅"
+            COLOR="3066993"
+          elif [ "$STATUS" == "failure" ]; then
+            EMOJI="❌"
+            COLOR="15158332"
+          else
+            EMOJI="⏳"
+            COLOR="10181046"
+          fi
+          
+          curl -X POST "${{ secrets.DISCORD_WEBHOOK }}" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "username": "Bitcoin ML Pipeline",
+              "avatar_url": "https://bitcoin.org/img/icons/logo.png",
+              "embeds": [
+                {
+                  "title": "'$EMOJI' '$WORKFLOW'",
+                  "description": "**Status**: '$STATUS'\n\n🔗 [View Details](${{ github.event.workflow_run.html_url }})",
+                  "color": '$COLOR',
+                  "fields": [
+                    {
+                      "name": "Branch",
+                      "value": "${{ github.event.workflow_run.head_branch }}",
+                      "inline": true
+                    },
+                    {
+                      "name": "Author",
+                      "value": "${{ github.event.workflow_run.actor.login }}",
+                      "inline": true
+                    }
+                  ],
+                  "timestamp": "'$(date -u +%Y-%m-%dT%H:%M:%SZ)'"
+                }
+              ]
+            }' || echo "Notification sent"
