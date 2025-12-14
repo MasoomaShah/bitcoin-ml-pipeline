@@ -432,35 +432,37 @@ def main():
                 with st.spinner("Calculating feature importance..."):
                     try:
                         # Prepare features for API call
-                        features_list = latest_features[feature_columns].values[0].tolist()
+                        features_dict = dict(zip(feature_columns, latest_features[feature_columns].values[0].tolist()))
                         
                         # Call API endpoint
                         response = requests.post(
                             "http://localhost:8000/explain",
-                            json={"features": features_list},
+                            json={"features": features_dict},
                             timeout=10
                         )
                         
                         if response.status_code == 200:
                             explanation = response.json()
                             
-                            # Display SHAP values
-                            st.success("✅ Explanation generated!")
+                            # Display explanation
+                            st.success(f"✅ Explanation generated ({explanation.get('explanation_method', 'model-based')})!")
                             
                             # Feature importance bar chart
-                            importance_df = pd.DataFrame({
-                                'Feature': feature_columns,
-                                'Importance': explanation.get('shap_values', [0]*len(feature_columns))
-                            }).sort_values('Importance', ascending=True).tail(10)
-                            
-                            fig_importance = px.barh(
-                                importance_df,
-                                x='Importance',
-                                y='Feature',
-                                title="Top 10 Most Important Features (SHAP)",
-                                labels={'Importance': 'SHAP Impact on Prediction', 'Feature': ''}
-                            )
-                            st.plotly_chart(fig_importance, use_container_width=True)
+                            feature_importance = explanation.get('feature_importance', {})
+                            if feature_importance:
+                                importance_df = pd.DataFrame({
+                                    'Feature': list(feature_importance.keys()),
+                                    'Importance': list(feature_importance.values())
+                                }).sort_values('Importance', ascending=True).tail(10)
+                                
+                                fig_importance = px.barh(
+                                    importance_df,
+                                    x='Importance',
+                                    y='Feature',
+                                    title=f"Top 10 Most Important Features ({explanation.get('explanation_method', 'Feature Importance')})",
+                                    labels={'Importance': 'Impact on Prediction', 'Feature': ''}
+                                )
+                                st.plotly_chart(fig_importance, use_container_width=True)
                             
                             # Show detailed metrics
                             with st.expander("📋 Detailed Explanation Metrics"):
@@ -484,6 +486,8 @@ def main():
                                     sorted_features = sorted(feature_importance.items(), key=lambda x: abs(x[1]), reverse=True)[:5]
                                     for feature_name, importance_val in sorted_features:
                                         st.write(f"• **{feature_name}**: {importance_val:.4f}")
+                                
+                                st.write(f"**Method:** {explanation.get('explanation_method', 'N/A')}")
                         
                         else:
                             st.warning(f"⚠️ Could not connect to API. Status: {response.status_code}")
@@ -494,6 +498,8 @@ def main():
                         st.info("Start the API with: `python api_server.py`")
                     except Exception as e:
                         st.error(f"❌ Error: {e}")
+                        import traceback
+                        st.write(traceback.format_exc())
         
         with col2:
             st.info(
