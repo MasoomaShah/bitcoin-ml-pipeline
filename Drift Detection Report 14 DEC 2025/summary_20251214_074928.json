@@ -1,0 +1,18 @@
+{
+  "timestamp": "2025-12-14T07:49:28.654049",
+  "drift_detected": true,
+  "severity": "HIGH",
+  "reference_size": 365,
+  "current_size": 7,
+  "tests_run": {
+    "ks_tests": 3,
+    "psi_tests": 3,
+    "wasserstein_tests": 3,
+    "chi_square_tests": 1
+  },
+  "features_affected": [
+    "price",
+    "volume",
+    "market_cap"
+  ]
+}

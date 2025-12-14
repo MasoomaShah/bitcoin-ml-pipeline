@@ -1,0 +1,75 @@
+{
+  "timestamp": "2025-12-14T07:49:28.648794",
+  "reference_period": "Last 365 days (365 records)",
+  "current_period": "2025-12-14T07:49:28.648781",
+  "reference_size": 365,
+  "current_size": 7,
+  "drift_detected": true,
+  "overall_severity": "HIGH",
+  "ks_tests": {
+    "price": {
+      "statistic": 0.240313,
+      "p_value": 0.742104,
+      "drift_detected": "False",
+      "interpretation": "NO_DRIFT"
+    },
+    "volume": {
+      "statistic": 0.336595,
+      "p_value": 0.338927,
+      "drift_detected": "False",
+      "interpretation": "NO_DRIFT"
+    },
+    "market_cap": {
+      "statistic": 0.317808,
+      "p_value": 0.40558,
+      "drift_detected": "False",
+      "interpretation": "NO_DRIFT"
+    }
+  },
+  "wasserstein_tests": {
+    "price": {
+      "distance": 1083.206067,
+      "drift_detected": "True",
+      "interpretation": "DRIFT"
+    },
+    "volume": {
+      "distance": 1040718882.818012,
+      "drift_detected": "True",
+      "interpretation": "DRIFT"
+    },
+    "market_cap": {
+      "distance": 48821408522.53568,
+      "drift_detected": "True",
+      "interpretation": "DRIFT"
+    }
+  },
+  "psi_tests": {
+    "price": {
+      "psi": 10.383157,
+      "drift_detected": "True",
+      "interpretation": "DRIFT",
+      "severity": "HIGH"
+    },
+    "volume": {
+      "psi": 8.023171,
+      "drift_detected": "True",
+      "interpretation": "DRIFT",
+      "severity": "HIGH"
+    },
+    "market_cap": {
+      "psi": 10.452927,
+      "drift_detected": "True",
+      "interpretation": "DRIFT",
+      "severity": "HIGH"
+    }
+  },
+  "chi_square_tests": {
+    "date": {
+      "statistic": 182.432877,
+      "p_value": 1.0,
+      "drift_detected": "False",
+      "interpretation": "NO_DRIFT"
+    }
+  },
+  "missing_columns": []
+}
