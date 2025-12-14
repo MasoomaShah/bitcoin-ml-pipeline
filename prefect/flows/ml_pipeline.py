@@ -270,88 +270,183 @@ def split_data(
 def train_regression_model(
     X_train: pd.DataFrame,
     y_train: pd.Series,
+    X_test: pd.DataFrame,
+    y_test: pd.Series,
     hyperparameters: Optional[Dict] = None
-) -> RandomForestRegressor:
-    """Train RandomForest regression model."""
+) -> Tuple:
+    """Train multiple regression models and return the best one."""
     print(f"\n{'='*60}")
-    print("STEP 4A: TRAIN REGRESSION MODEL")
+    print("STEP 4A: TRAIN & SELECT BEST REGRESSION MODEL")
     print(f"{'='*60}")
     
-    if hyperparameters is None:
-        hyperparameters = {
-            'n_estimators': 300,
-            'max_depth': 15,
-            'min_samples_split': 2,
-            'min_samples_leaf': 1,
-            'max_features': 'sqrt',
+    models_to_test = {}
+    results = {}
+    
+    # Model 1: RandomForest
+    print("\n  1. Training RandomForest Regressor...")
+    rf_params = {
+        'n_estimators': 300,
+        'max_depth': 15,
+        'min_samples_split': 2,
+        'min_samples_leaf': 1,
+        'max_features': 'sqrt',
+        'random_state': 42,
+        'n_jobs': -1
+    }
+    rf_model = RandomForestRegressor(**rf_params)
+    rf_model.fit(X_train, y_train)
+    rf_pred = rf_model.predict(X_test)
+    rf_rmse = np.sqrt(mean_squared_error(y_test, rf_pred))
+    rf_r2 = r2_score(y_test, rf_pred)
+    models_to_test['RandomForest'] = rf_model
+    results['RandomForest'] = {'rmse': rf_rmse, 'r2': rf_r2}
+    print(f"     ✓ RMSE: {rf_rmse:.4f}, R²: {rf_r2:.4f}")
+    
+    # Model 2: GradientBoosting
+    print("  2. Training GradientBoosting Regressor...")
+    gb_params = {
+        'n_estimators': 300,
+        'max_depth': 8,
+        'learning_rate': 0.05,
+        'subsample': 0.8,
+        'random_state': 42
+    }
+    gb_model = GradientBoostingRegressor(**gb_params)
+    gb_model.fit(X_train, y_train)
+    gb_pred = gb_model.predict(X_test)
+    gb_rmse = np.sqrt(mean_squared_error(y_test, gb_pred))
+    gb_r2 = r2_score(y_test, gb_pred)
+    models_to_test['GradientBoosting'] = gb_model
+    results['GradientBoosting'] = {'rmse': gb_rmse, 'r2': gb_r2}
+    print(f"     ✓ RMSE: {gb_rmse:.4f}, R²: {gb_r2:.4f}")
+    
+    # Model 3: XGBoost (if available)
+    if XGBOOST_AVAILABLE:
+        print("  3. Training XGBoost Regressor...")
+        xgb_params = {
+            'n_estimators': 500,
+            'max_depth': 8,
+            'learning_rate': 0.05,
+            'subsample': 0.8,
+            'colsample_bytree': 0.8,
             'random_state': 42,
             'n_jobs': -1
         }
+        xgb_model = XGBRegressor(**xgb_params)
+        xgb_model.fit(X_train, y_train)
+        xgb_pred = xgb_model.predict(X_test)
+        xgb_rmse = np.sqrt(mean_squared_error(y_test, xgb_pred))
+        xgb_r2 = r2_score(y_test, xgb_pred)
+        models_to_test['XGBoost'] = xgb_model
+        results['XGBoost'] = {'rmse': xgb_rmse, 'r2': xgb_r2}
+        print(f"     ✓ RMSE: {xgb_rmse:.4f}, R²: {xgb_r2:.4f}")
     
-    print(f"  Hyperparameters: {hyperparameters}")
+    # Select best model (highest R², lower RMSE is secondary criteria)
+    print("\n  📊 Model Comparison Results:")
+    best_model_name = max(results.keys(), key=lambda x: results[x]['r2'])
+    best_model = models_to_test[best_model_name]
+    best_metrics = results[best_model_name]
     
-    model = RandomForestRegressor(**hyperparameters)
-    model.fit(X_train, y_train)
+    for name, metrics in results.items():
+        status = "⭐ BEST" if name == best_model_name else "  "
+        print(f"     {status} {name:20} | RMSE: {metrics['rmse']:8.4f} | R²: {metrics['r2']:10.4f}")
     
-    print(f"✓ Regression model trained")
-    print(f"  Features used: {X_train.shape[1]}")
-    print(f"  Training samples: {len(X_train)}")
+    print(f"\n  ✓ Selected: {best_model_name} Regressor")
+    print(f"    Features used: {X_train.shape[1]}")
+    print(f"    Training samples: {len(X_train)}")
     
-    return model
+    return best_model, best_model_name
 
 
 @task(name="train_classification_model", retries=2, retry_delay_seconds=10)
 def train_classification_model(
     X_train: pd.DataFrame,
     y_train: pd.Series,
+    X_test: pd.DataFrame,
+    y_test: pd.Series,
     hyperparameters: Optional[Dict] = None
-) -> RandomForestClassifier:
-    """Train RandomForest classification model."""
+) -> Tuple:
+    """Train multiple classification models and return the best one."""
     print(f"\n{'='*60}")
-    print("STEP 4B: TRAIN CLASSIFICATION MODEL")
+    print("STEP 4B: TRAIN & SELECT BEST CLASSIFICATION MODEL")
     print(f"{'='*60}")
     
-    if hyperparameters is None:
-        if XGBOOST_AVAILABLE:
-            # XGBoost performs better on time-series
-            hyperparameters = {
-                'n_estimators': 500,
-                'max_depth': 8,
-                'learning_rate': 0.05,
-                'subsample': 0.8,
-                'colsample_bytree': 0.8,
-                'min_child_weight': 1,
-                'gamma': 0.1,
-                'reg_alpha': 0.1,
-                'reg_lambda': 1,
-                'random_state': 42,
-                'n_jobs': -1,
-                'eval_metric': 'logloss'
-            }
-            model = XGBClassifier(**hyperparameters)
-        else:
-            # Fallback to GradientBoosting
-            hyperparameters = {
-                'n_estimators': 300,
-                'max_depth': 8,
-                'learning_rate': 0.05,
-                'subsample': 0.8,
-                'random_state': 42
-            }
-            model = GradientBoostingClassifier(**hyperparameters)
-    else:
-        model = RandomForestClassifier(**hyperparameters)
+    models_to_test = {}
+    results = {}
     
-    print(f"  Model: {type(model).__name__}")
-    print(f"  Hyperparameters: {hyperparameters}")
+    # Model 1: RandomForest
+    print("\n  1. Training RandomForest Classifier...")
+    rf_params = {
+        'n_estimators': 300,
+        'max_depth': 12,
+        'min_samples_split': 5,
+        'min_samples_leaf': 2,
+        'random_state': 42,
+        'n_jobs': -1
+    }
+    rf_clf = RandomForestClassifier(**rf_params)
+    rf_clf.fit(X_train, y_train)
+    rf_pred = rf_clf.predict(X_test)
+    rf_acc = accuracy_score(y_test, rf_pred)
+    rf_f1 = f1_score(y_test, rf_pred, average='weighted')
+    models_to_test['RandomForest'] = rf_clf
+    results['RandomForest'] = {'accuracy': rf_acc, 'f1': rf_f1}
+    print(f"     ✓ Accuracy: {rf_acc:.4f}, F1: {rf_f1:.4f}")
     
-    model.fit(X_train, y_train)
+    # Model 2: GradientBoosting
+    print("  2. Training GradientBoosting Classifier...")
+    gb_params = {
+        'n_estimators': 300,
+        'max_depth': 8,
+        'learning_rate': 0.05,
+        'subsample': 0.8,
+        'random_state': 42
+    }
+    gb_clf = GradientBoostingClassifier(**gb_params)
+    gb_clf.fit(X_train, y_train)
+    gb_pred = gb_clf.predict(X_test)
+    gb_acc = accuracy_score(y_test, gb_pred)
+    gb_f1 = f1_score(y_test, gb_pred, average='weighted')
+    models_to_test['GradientBoosting'] = gb_clf
+    results['GradientBoosting'] = {'accuracy': gb_acc, 'f1': gb_f1}
+    print(f"     ✓ Accuracy: {gb_acc:.4f}, F1: {gb_f1:.4f}")
     
-    print(f"✓ Classification model trained")
-    print(f"  Features used: {X_train.shape[1]}")
-    print(f"  Training samples: {len(X_train)}")
+    # Model 3: XGBoost (if available)
+    if XGBOOST_AVAILABLE:
+        print("  3. Training XGBoost Classifier...")
+        xgb_params = {
+            'n_estimators': 500,
+            'max_depth': 8,
+            'learning_rate': 0.05,
+            'subsample': 0.8,
+            'colsample_bytree': 0.8,
+            'random_state': 42,
+            'eval_metric': 'logloss'
+        }
+        xgb_clf = XGBClassifier(**xgb_params)
+        xgb_clf.fit(X_train, y_train)
+        xgb_pred = xgb_clf.predict(X_test)
+        xgb_acc = accuracy_score(y_test, xgb_pred)
+        xgb_f1 = f1_score(y_test, xgb_pred, average='weighted')
+        models_to_test['XGBoost'] = xgb_clf
+        results['XGBoost'] = {'accuracy': xgb_acc, 'f1': xgb_f1}
+        print(f"     ✓ Accuracy: {xgb_acc:.4f}, F1: {xgb_f1:.4f}")
     
-    return model
+    # Select best model (highest accuracy)
+    print("\n  📊 Model Comparison Results:")
+    best_model_name = max(results.keys(), key=lambda x: results[x]['accuracy'])
+    best_model = models_to_test[best_model_name]
+    best_metrics = results[best_model_name]
+    
+    for name, metrics in results.items():
+        status = "⭐ BEST" if name == best_model_name else "  "
+        print(f"     {status} {name:20} | Accuracy: {metrics['accuracy']:.4f} | F1: {metrics['f1']:.4f}")
+    
+    print(f"\n  ✓ Selected: {best_model_name} Classifier")
+    print(f"    Features used: {X_train.shape[1]}")
+    print(f"    Training samples: {len(X_train)}")
+    
+    return best_model, best_model_name
 
 
 # ============================================================================
@@ -424,8 +519,10 @@ def evaluate_classification_model(
 
 @task(name="save_and_version_models", retries=2, retry_delay_seconds=5)
 def save_and_version_models(
-    reg_model: RandomForestRegressor,
-    clf_model: RandomForestClassifier,
+    reg_model: object,
+    clf_model: object,
+    reg_model_name: str,
+    clf_model_name: str,
     scaler: object,
     feature_columns: list,
     reg_metrics: Dict,
@@ -470,6 +567,8 @@ def save_and_version_models(
     metadata = {
         'version': version,
         'created_at': datetime.utcnow().isoformat() + 'Z',
+        'regression_model_type': reg_model_name,
+        'classification_model_type': clf_model_name,
         'regression_metrics': reg_metrics,
         'classification_metrics': clf_metrics,
         'feature_count': len(feature_columns),
@@ -585,9 +684,9 @@ def ml_training_pipeline(
             test_days=test_days
         )
         
-        # Step 4: Model Training (concurrent)
-        reg_model = train_regression_model(X_train, y_reg_train, reg_hyperparams)
-        clf_model = train_classification_model(X_train, y_clf_train, clf_hyperparams)
+        # Step 4: Model Training (select best models)
+        reg_model, reg_model_name = train_regression_model(X_train, y_reg_train, X_test, y_reg_test, reg_hyperparams)
+        clf_model, clf_model_name = train_classification_model(X_train, y_clf_train, X_test, y_clf_test, clf_hyperparams)
         
         # Step 5: Model Evaluation (concurrent)
         reg_metrics = evaluate_regression_model(reg_model, X_test, y_reg_test)
@@ -597,6 +696,8 @@ def ml_training_pipeline(
         version_info = save_and_version_models(
             reg_model,
             clf_model,
+            reg_model_name,
+            clf_model_name,
             scaler,
             feature_cols,
             reg_metrics,
