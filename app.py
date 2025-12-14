@@ -421,93 +421,77 @@ def main():
             risk_level = "High" if abs(predictions['price_change_pct']) > 2 else "Medium" if abs(predictions['price_change_pct']) > 1 else "Low"
             st.metric("Volatility Risk", risk_level)
         
-        # ==================== SHAP Explainability ====================
+        # ==================== Feature Importance Explainability ====================
         st.divider()
-        st.subheader("🔍 Prediction Explanation (SHAP)")
+        st.subheader("🔍 Prediction Explanation (Feature Importance)")
         
         col1, col2 = st.columns([1, 3])
         
         with col1:
-            if st.button("📊 Explain This Prediction", key="explain_btn", use_container_width=True):
+            if st.button("📊 Show Feature Importance", key="explain_btn", use_container_width=True):
                 with st.spinner("Calculating feature importance..."):
                     try:
-                        # Prepare features for API call
-                        features_dict = dict(zip(feature_columns, latest_features[feature_columns].values[0].tolist()))
-                        
-                        # Call API endpoint
-                        response = requests.post(
-                            "http://localhost:8000/explain",
-                            json={"features": features_dict},
-                            timeout=10
-                        )
-                        
-                        if response.status_code == 200:
-                            explanation = response.json()
+                        # Get feature importance from the classification model
+                        if hasattr(clf_model, 'feature_importances_'):
+                            importances = clf_model.feature_importances_
                             
-                            # Display explanation
-                            st.success(f"✅ Explanation generated ({explanation.get('explanation_method', 'model-based')})!")
+                            # Create feature importance dataframe
+                            importance_df = pd.DataFrame({
+                                'Feature': feature_columns,
+                                'Importance': importances
+                            }).sort_values('Importance', ascending=False)
                             
-                            # Feature importance bar chart
-                            feature_importance = explanation.get('feature_importance', {})
-                            if feature_importance:
-                                importance_df = pd.DataFrame({
-                                    'Feature': list(feature_importance.keys()),
-                                    'Importance': list(feature_importance.values())
-                                }).sort_values('Importance', ascending=True).tail(10)
-                                
-                                fig_importance = px.barh(
-                                    importance_df,
-                                    x='Importance',
-                                    y='Feature',
-                                    title=f"Top 10 Most Important Features ({explanation.get('explanation_method', 'Feature Importance')})",
-                                    labels={'Importance': 'Impact on Prediction', 'Feature': ''}
-                                )
-                                st.plotly_chart(fig_importance, use_container_width=True)
+                            st.success("✅ Feature importance calculated (from RandomForest/GradientBoosting model)!")
+                            
+                            # Top 10 features chart
+                            top_10 = importance_df.head(10).sort_values('Importance', ascending=True)
+                            fig_importance = px.barh(
+                                top_10,
+                                x='Importance',
+                                y='Feature',
+                                title="Top 10 Most Important Features",
+                                labels={'Importance': 'Importance Score', 'Feature': ''}
+                            )
+                            st.plotly_chart(fig_importance, use_container_width=True)
                             
                             # Show detailed metrics
-                            with st.expander("📋 Detailed Explanation Metrics"):
+                            with st.expander("📋 Detailed Feature Analysis"):
                                 exp_col1, exp_col2 = st.columns(2)
                                 
                                 with exp_col1:
                                     st.metric(
-                                        "Base Value (Model Average)",
-                                        f"{explanation.get('base_value', 0):.4f}",
-                                        help="The average prediction the model makes"
+                                        "Model Type",
+                                        "Tree-based Ensemble",
+                                        help="RandomForest or GradientBoosting"
                                     )
                                     st.metric(
-                                        "Prediction Probability",
-                                        f"{explanation.get('probability', 0)*100:.1f}%",
+                                        "Prediction Confidence",
+                                        f"{predictions['direction_confidence']:.1f}%",
                                         help="Confidence of the direction prediction"
                                     )
                                 
                                 with exp_col2:
-                                    st.write("**Top Contributing Features:**")
-                                    feature_importance = explanation.get('feature_importance', {})
-                                    sorted_features = sorted(feature_importance.items(), key=lambda x: abs(x[1]), reverse=True)[:5]
-                                    for feature_name, importance_val in sorted_features:
-                                        st.write(f"• **{feature_name}**: {importance_val:.4f}")
+                                    st.write("**Top 5 Contributing Features:**")
+                                    for idx, row in importance_df.head(5).iterrows():
+                                        st.write(f"• **{row['Feature']}**: {row['Importance']:.4f}")
                                 
-                                st.write(f"**Method:** {explanation.get('explanation_method', 'N/A')}")
-                        
+                                st.write(f"**Prediction:** {predictions['direction']} with {predictions['direction_confidence']:.1f}% confidence")
                         else:
-                            st.warning(f"⚠️ Could not connect to API. Status: {response.status_code}")
-                            st.info("Make sure the API server is running on localhost:8000")
+                            st.warning("⚠️ Model doesn't have feature importance")
+                            st.info("Current model may not support feature importance extraction")
                     
-                    except requests.exceptions.ConnectionError:
-                        st.error("❌ Cannot connect to API server")
-                        st.info("Start the API with: `python api_server.py`")
                     except Exception as e:
-                        st.error(f"❌ Error: {e}")
+                        st.error(f"❌ Error calculating feature importance: {e}")
                         import traceback
                         st.write(traceback.format_exc())
         
         with col2:
             st.info(
-                "💡 **How to interpret SHAP values:**\n\n"
-                "• Positive values push prediction towards UP ⬆️\n"
-                "• Negative values push prediction towards DOWN ⬇️\n"
-                "• Larger absolute values = stronger influence\n"
-                "• Base Value = average prediction before considering features"
+                "💡 **How to interpret Feature Importance:**\n\n"
+                "• Higher values = Feature has more influence on predictions\n"
+                "• Combines all features to explain the prediction\n"
+                "• Based on how much each feature improves the model\n"
+                "• Values sum to 1.0 (100%)"
             )
 
     
