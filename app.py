@@ -323,11 +323,24 @@ def main():
         st.code("python src/train_with_feature_store.py")
         return
     
+    st.success("✅ Models and data loaded successfully")
+    
     # Show data timestamp
     from datetime import datetime
     if 'date' in df_raw.columns:
         last_data_time = df_raw['date'].iloc[-1]
         st.info(f"📅 Latest data: {last_data_time} | Loaded at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    
+    # Debug: Show what features we have
+    st.write(f"DEBUG: Loaded {len(df_processed)} rows of processed data")
+    st.write(f"DEBUG: Processed data columns: {df_processed.columns.tolist()}")
+    st.write(f"DEBUG: Expected features: {feature_columns}")
+    
+    # Check for missing features
+    missing_features = set(feature_columns) - set(df_processed.columns)
+    if missing_features:
+        st.error(f"Missing features: {missing_features}")
+        st.stop()
     
     # Model info
     col1, col2, col3, col4 = st.columns(4)
