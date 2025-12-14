@@ -274,6 +274,8 @@ def make_predictions(clf_model, reg_model, scaler, features, feature_columns, cu
 def main():
     """Main Streamlit app"""
     
+    st.write("DEBUG: main() function started")
+    
     # Header
     st.markdown('<div class="main-header">₿ Bitcoin ML Prediction Dashboard</div>', unsafe_allow_html=True)
     
@@ -314,9 +316,19 @@ def main():
         """)
     
     # Load model and data
-    with st.spinner("Loading models and data..."):
-        clf_model, reg_model, scaler, feature_columns, metadata = load_latest_model()
-        df_raw, df_processed = load_bitcoin_data()
+    st.write("DEBUG: Starting to load models and data...")
+    try:
+        with st.spinner("Loading models and data..."):
+            clf_model, reg_model, scaler, feature_columns, metadata = load_latest_model()
+            st.write(f"DEBUG: load_latest_model() returned: clf={clf_model is not None}, reg={reg_model is not None}")
+            
+            df_raw, df_processed = load_bitcoin_data()
+            st.write(f"DEBUG: load_bitcoin_data() returned: raw={df_raw is not None}, processed={df_processed is not None}")
+    except Exception as e:
+        st.error(f"ERROR during loading: {e}")
+        import traceback
+        st.write(traceback.format_exc())
+        return
     
     if clf_model is None or df_raw is None or df_processed is None:
         st.error("❌ Could not load models or data. Please train models first.")
@@ -557,4 +569,9 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception as e:
+        st.error(f"FATAL ERROR: {str(e)}")
+        import traceback
+        st.write(traceback.format_exc())
