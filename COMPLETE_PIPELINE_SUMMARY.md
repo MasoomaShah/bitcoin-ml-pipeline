@@ -238,8 +238,7 @@ ML PROJECT/
 ---
 
 ## Additional Features Implemented
-
-✅ **Hopsworks Support**: Alternative feature store option  
+  
 ✅ **Alpha Vantage Integration**: 15+ years of Bitcoin data  
 ✅ **Feature Engineering Pipeline**: 24 technical indicators  
 ✅ **Fallback System**: Local training if feature store unavailable  
@@ -251,16 +250,6 @@ ML PROJECT/
 
 ## Future Enhancements (Optional)
 
-- [ ] TensorFlow/PyTorch models (deep learning)
-- [ ] Online feature serving
-- [ ] Model deployment to Vertex AI Endpoints
-- [ ] Real-time prediction API
-- [ ] Model monitoring & drift detection
-- [ ] Hyperparameter tuning (Grid/Random Search)
-- [ ] Cross-validation
-- [ ] Ensemble methods
-
----
 
 ## Conclusion
 
@@ -275,7 +264,3 @@ The pipeline:
 **Ready for Production Deployment!** 🚀
 
 ---
-
-*Last Updated: December 7, 2025*  
-*Version: v20251207T163358Z*  
-*Pipeline Status: OPERATIONAL ✅*

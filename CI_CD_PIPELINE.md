@@ -3,8 +3,7 @@
 ## Overview
 
 This ML project implements a complete **Continuous Integration & Continuous Deployment (CI/CD)** pipeline using GitHub Actions. The pipeline automates code checks, testing, model training, validation, and deployment.
-
-## Architecture
+ 
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -234,13 +233,6 @@ Edit `.github/workflows/ci.yml`:
     pytest tests/ -v --cov=src --cov=api --cov-report=xml
 ```
 
-### Adjusting Performance Thresholds
-
-Edit `.github/workflows/cd.yml`:
-```yaml
-if accuracy >= 0.65:  # Change threshold here
-    print('✓ Model meets threshold')
-```
 
 ### Adding New Data Sources
 

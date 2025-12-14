@@ -418,7 +418,7 @@ jobs:
         if: steps.status.outputs.TRAINING_SUCCESS == 'true'
         uses: sarisia/actions-status-discord@v1
         with:
-          webhook_url: ${{ secrets.DISCORD_WEBHOOK }}
+          webhook: ${{ secrets.DISCORD_WEBHOOK }}
           status: success
           title: "✅ Daily Bitcoin Model Training Complete"
           description: |
@@ -437,7 +437,7 @@ jobs:
         if: steps.status.outputs.TRAINING_SUCCESS == 'false'
         uses: sarisia/actions-status-discord@v1
         with:
-          webhook_url: ${{ secrets.DISCORD_WEBHOOK }}
+          webhook: ${{ secrets.DISCORD_WEBHOOK }}
           status: failure
           title: "❌ Daily Bitcoin Model Training Failed"
           description: |
