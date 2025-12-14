@@ -28,7 +28,7 @@ try:
     SHAP_AVAILABLE = True
 except ImportError:
     SHAP_AVAILABLE = False
-    print("⚠️  SHAP not installed. Explainability features will be limited.")
+    print("[WARNING] SHAP not installed. Explainability features will be limited.")
 
 # Try to import LIME (optional)
 try:
@@ -36,7 +36,7 @@ try:
     LIME_AVAILABLE = True
 except ImportError:
     LIME_AVAILABLE = False
-    print("⚠️  LIME not installed. Alternative explainability unavailable.")
+    print("[WARNING] LIME not installed. Alternative explainability unavailable.")
 
 # Try to import Prophet (optional)
 try:
@@ -44,7 +44,7 @@ try:
     PROPHET_AVAILABLE = True
 except ImportError:
     PROPHET_AVAILABLE = False
-    print("⚠️  Prophet not installed. Time series forecasting unavailable.")
+    print("[WARNING] Prophet not installed. Time series forecasting unavailable.")
 
 # Try to import TensorFlow for deep learning models (optional)
 try:
