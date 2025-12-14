@@ -18,6 +18,7 @@ import joblib
 import json
 import os
 import sys
+import requests
 from pathlib import Path
 
 # Add src to path
@@ -398,8 +399,6 @@ def main():
             if st.button("📊 Explain This Prediction", key="explain_btn", use_container_width=True):
                 with st.spinner("Calculating feature importance..."):
                     try:
-                        import requests
-                        
                         # Prepare features for API call
                         features_list = latest_features[feature_columns].values[0].tolist()
                         
