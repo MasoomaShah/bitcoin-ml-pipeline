@@ -126,6 +126,7 @@ jobs:
       - name: Install dependencies
         run: |
           pip install -r requirements.txt
+          pip install scipy numpy pandas
 
       - name: Download latest data
         uses: actions/download-artifact@v4
@@ -134,14 +135,43 @@ jobs:
 
       - name: Copy data to correct location
         run: |
-          mkdir -p data/raw
+          mkdir -p data/raw reports/drift_reports
           cp bitcoin_latest.csv data/raw/bitcoin_timeseries.csv || echo "Data file will be used from artifact"
+          ls -la data/raw/
+
+      - name: Debug - Check environment
+        run: |
+          echo "🔍 Python version:"
+          python --version
+          echo "🔍 Installed packages:"
+          pip list | grep -E "scipy|numpy|pandas|scikit"
+          echo "🔍 Current directory:"
+          pwd
+          echo "🔍 Data files:"
+          ls -la data/raw/ || echo "No data files found"
+          echo "🔍 Scripts available:"
+          ls -la scripts/ | grep drift
 
       - name: Run drift detection
+        id: drift
         continue-on-error: true
         run: |
           echo "🔍 Running data drift detection..."
-          python scripts/check_drift_daily.py || echo "⚠️ Drift check completed with warnings"
+          python scripts/check_drift_daily.py
+          echo "drift_status=completed" >> $GITHUB_OUTPUT
+        env:
+          PYTHONPATH: ${{ github.workspace }}
+
+      - name: Debug - Check drift output
+        if: always()
+        run: |
+          echo "🔍 Drift script exit code: ${{ steps.drift.outcome }}"
+          echo "🔍 Reports directory contents:"
+          ls -la reports/drift_reports/ || echo "No drift reports found"
+          if [ -f reports/drift_reports/*.json ]; then
+            echo "🔍 Latest drift report:"
+            head -50 reports/drift_reports/*.json || echo "No JSON files"
+          fi
 
       - name: Upload drift reports
         if: always()
@@ -150,6 +180,27 @@ jobs:
           name: daily-drift-reports
           path: reports/drift_reports/
           retention-days: 30
+        continue-on-error: true
+
+      - name: Create dummy drift report if missing
+        if: always()
+        run: |
+          if [ ! -f reports/drift_reports/drift_report_*.json ]; then
+            echo "⚠️ No drift report found, creating placeholder..."
+            mkdir -p reports/drift_reports
+            cat > reports/drift_reports/drift_report_placeholder.json << 'EOF'
+          {
+            "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "status": "incomplete",
+            "drift_detected": false,
+            "message": "Drift detection did not complete - check logs above",
+            "features_checked": [],
+            "notes": "Check GitHub Actions logs for detailed error information"
+          }
+          EOF
+            echo "✅ Placeholder created"
+          fi
+
 
   # ==================== DAILY MODEL TRAINING ====================
   daily-training:
