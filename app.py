@@ -387,6 +387,92 @@ def main():
             # Risk indicator
             risk_level = "High" if abs(predictions['price_change_pct']) > 2 else "Medium" if abs(predictions['price_change_pct']) > 1 else "Low"
             st.metric("Volatility Risk", risk_level)
+        
+        # ==================== SHAP Explainability ====================
+        st.divider()
+        st.subheader("🔍 Prediction Explanation (SHAP)")
+        
+        col1, col2 = st.columns([1, 3])
+        
+        with col1:
+            if st.button("📊 Explain This Prediction", key="explain_btn", use_container_width=True):
+                with st.spinner("Calculating feature importance..."):
+                    try:
+                        import requests
+                        
+                        # Prepare features for API call
+                        features_list = latest_features[feature_columns].values[0].tolist()
+                        
+                        # Call API endpoint
+                        response = requests.post(
+                            "http://localhost:8000/api/explain",
+                            json={"features": features_list},
+                            timeout=10
+                        )
+                        
+                        if response.status_code == 200:
+                            explanation = response.json()
+                            
+                            # Display SHAP values
+                            st.success("✅ Explanation generated!")
+                            
+                            # Feature importance bar chart
+                            importance_df = pd.DataFrame({
+                                'Feature': feature_columns,
+                                'Importance': explanation.get('shap_values', [0]*len(feature_columns))
+                            }).sort_values('Importance', ascending=True).tail(10)
+                            
+                            fig_importance = px.barh(
+                                importance_df,
+                                x='Importance',
+                                y='Feature',
+                                title="Top 10 Most Important Features (SHAP)",
+                                labels={'Importance': 'SHAP Impact on Prediction', 'Feature': ''}
+                            )
+                            st.plotly_chart(fig_importance, use_container_width=True)
+                            
+                            # Show detailed metrics
+                            with st.expander("📋 Detailed Explanation Metrics"):
+                                exp_col1, exp_col2 = st.columns(2)
+                                
+                                with exp_col1:
+                                    st.metric(
+                                        "Base Value (Model Average)",
+                                        f"{explanation.get('base_value', 0):.4f}",
+                                        help="The average prediction the model makes"
+                                    )
+                                    st.metric(
+                                        "Prediction Probability",
+                                        f"{explanation.get('probability', 0)*100:.1f}%",
+                                        help="Confidence of the direction prediction"
+                                    )
+                                
+                                with exp_col2:
+                                    st.write("**Top Contributing Features:**")
+                                    feature_importance = explanation.get('feature_importance', {})
+                                    sorted_features = sorted(feature_importance.items(), key=lambda x: abs(x[1]), reverse=True)[:5]
+                                    for feature_name, importance_val in sorted_features:
+                                        st.write(f"• **{feature_name}**: {importance_val:.4f}")
+                        
+                        else:
+                            st.warning(f"⚠️ Could not connect to API. Status: {response.status_code}")
+                            st.info("Make sure the API server is running on localhost:8000")
+                    
+                    except requests.exceptions.ConnectionError:
+                        st.error("❌ Cannot connect to API server")
+                        st.info("Start the API with: `python api_server.py`")
+                    except Exception as e:
+                        st.error(f"❌ Error: {e}")
+        
+        with col2:
+            st.info(
+                "💡 **How to interpret SHAP values:**\n\n"
+                "• Positive values push prediction towards UP ⬆️\n"
+                "• Negative values push prediction towards DOWN ⬇️\n"
+                "• Larger absolute values = stronger influence\n"
+                "• Base Value = average prediction before considering features"
+            )
+
     
     st.divider()
     
