@@ -259,8 +259,15 @@ def make_predictions(clf_model, reg_model, scaler, features, feature_columns, cu
             'price_change_usd': float(predicted_price - current_price)
         }
     
+    except KeyError as e:
+        st.error(f"Feature missing: {e}")
+        st.write(f"Available features in data: {features.columns.tolist()}")
+        st.write(f"Expected features: {feature_columns}")
+        return None
     except Exception as e:
-        st.error(f"Prediction error: {e}")
+        st.error(f"Prediction error: {str(e)}")
+        import traceback
+        st.write(traceback.format_exc())
         return None
 
 
@@ -404,7 +411,7 @@ def main():
                         
                         # Call API endpoint
                         response = requests.post(
-                            "http://localhost:8000/api/explain",
+                            "http://localhost:8000/explain",
                             json={"features": features_list},
                             timeout=10
                         )
