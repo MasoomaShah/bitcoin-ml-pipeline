@@ -194,7 +194,7 @@ jobs:
         if: steps.status.outputs.CI_SUCCESS == 'true'
         uses: sarisia/actions-status-discord@v1
         with:
-          webhook_url: ${{ secrets.DISCORD_WEBHOOK }}
+          webhook: ${{ secrets.DISCORD_WEBHOOK }}
           status: success
           title: "✅ CI Pipeline Passed"
           description: |
@@ -213,7 +213,7 @@ jobs:
         if: steps.status.outputs.CI_SUCCESS == 'false'
         uses: sarisia/actions-status-discord@v1
         with:
-          webhook_url: ${{ secrets.DISCORD_WEBHOOK }}
+          webhook: ${{ secrets.DISCORD_WEBHOOK }}
           status: failure
           title: "❌ CI Pipeline Failed"
           description: |
