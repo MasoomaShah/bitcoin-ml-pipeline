@@ -182,7 +182,7 @@ class VertexAIFeatureStore:
             
             # Import from DataFrame to Feature Store
             self.entity_type.ingest_from_df(
-                feature_time_column='feature_timestamp',
+                feature_time='feature_timestamp',
                 df_source=df_import,
                 entity_id_field='entity_id',
                 worker_count=1,
