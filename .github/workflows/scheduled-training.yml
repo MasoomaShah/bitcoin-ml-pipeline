@@ -245,7 +245,7 @@ jobs:
       - name: Run daily training pipeline
         env:
           PYTHONIOENCODING: utf-8
-          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK }}
         run: |
           echo "Starting daily model training at $(date)"
           python test_prefect_pipeline.py
