@@ -20,6 +20,9 @@ great-expectations
 shap>=0.42.0
 lime>=0.2.0.1
 
+# Google Cloud
+google-cloud-aiplatform>=1.25.0
+
 # Deep Learning
 tensorflow>=2.13.0
 keras>=2.13.0
