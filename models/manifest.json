@@ -1,5 +1,5 @@
 {
-  "active_version": "v20251208T075527Z",
+  "active_version": "v20251215T121115Z",
   "versions": {
     "v20251202T181703Z": {
       "reg_model": "models/v20251202T181703Z_reg_model.pkl",
@@ -815,6 +815,60 @@
         "precision": 0.5706549312862595,
         "recall": 0.5616438356164384,
         "test_samples": 219
+      }
+    },
+    "v20251215T113348Z": {
+      "reg_model": "models/v20251215T113348Z_reg_model.pkl",
+      "clf_model": "models/v20251215T113348Z_clf_model.pkl",
+      "scaler": "models/v20251215T113348Z_scaler.pkl",
+      "feature_columns": "models/v20251215T113348Z_feature_columns.json",
+      "metadata": "models/v20251215T113348Z_training_metadata.json",
+      "created_at": "2025-12-15T11:33:48.604400Z",
+      "regression_metrics": {
+        "rmse": 1.0276020711694274,
+        "r2": 0.19405321126415986,
+        "test_samples": 30
+      },
+      "classification_metrics": {
+        "accuracy": 0.7333333333333333,
+        "f1_score": 0.7384370015948963,
+        "test_samples": 30
+      }
+    },
+    "v20251215T114655Z": {
+      "reg_model": "models/v20251215T114655Z_reg_model.pkl",
+      "clf_model": "models/v20251215T114655Z_clf_model.pkl",
+      "scaler": "models/v20251215T114655Z_scaler.pkl",
+      "feature_columns": "models/v20251215T114655Z_feature_columns.json",
+      "metadata": "models/v20251215T114655Z_training_metadata.json",
+      "created_at": "2025-12-15T11:46:55.754382Z",
+      "regression_metrics": {
+        "rmse": 1.0276020711694274,
+        "r2": 0.19405321126415986,
+        "test_samples": 30
+      },
+      "classification_metrics": {
+        "accuracy": 0.7333333333333333,
+        "f1_score": 0.7384370015948963,
+        "test_samples": 30
+      }
+    },
+    "v20251215T121115Z": {
+      "reg_model": "models/v20251215T121115Z_reg_model.pkl",
+      "clf_model": "models/v20251215T121115Z_clf_model.pkl",
+      "scaler": "models/v20251215T121115Z_scaler.pkl",
+      "feature_columns": "models/v20251215T121115Z_feature_columns.json",
+      "metadata": "models/v20251215T121115Z_training_metadata.json",
+      "created_at": "2025-12-15T12:11:15.346621Z",
+      "regression_metrics": {
+        "rmse": 1.0276020711694274,
+        "r2": 0.19405321126415986,
+        "test_samples": 30
+      },
+      "classification_metrics": {
+        "accuracy": 0.7333333333333333,
+        "f1_score": 0.7384370015948963,
+        "test_samples": 30
       }
     }
   }
