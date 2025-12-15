@@ -649,10 +649,10 @@ def register_models_to_vertex_ai(version_info: Dict) -> bool:
         try:
             clf_model_id = registry.upload_model(
                 model_path=clf_model_path,
-                model_name=f"bitcoin-classifier-{version}",
+                display_name=f"bitcoin-classifier-{version}",
                 description=f"Bitcoin price direction classifier. Accuracy: {metadata['classification_metrics'].get('accuracy', 0):.4f}",
-                model_type="sklearn",
-                framework="scikit-learn"
+                metrics=metadata['classification_metrics'],
+                model_type="classification"
             )
             print(f"✅ Classification model registered: {clf_model_id}")
         except Exception as e:
@@ -663,10 +663,10 @@ def register_models_to_vertex_ai(version_info: Dict) -> bool:
         try:
             reg_model_id = registry.upload_model(
                 model_path=reg_model_path,
-                model_name=f"bitcoin-regressor-{version}",
+                display_name=f"bitcoin-regressor-{version}",
                 description=f"Bitcoin price regression model. RMSE: {metadata['regression_metrics'].get('rmse', 0):.4f}",
-                model_type="sklearn",
-                framework="scikit-learn"
+                metrics=metadata['regression_metrics'],
+                model_type="regression"
             )
             print(f"✅ Regression model registered: {reg_model_id}")
         except Exception as e:
@@ -712,14 +712,12 @@ def upload_features_to_feature_store(df_features: pd.DataFrame, feature_names: l
         # Select only the technical indicator features
         feature_df = df_features[feature_names].copy()
         feature_df['timestamp'] = pd.Timestamp.utcnow()
-        feature_df['entity_id'] = 'BTC_USD'  # Entity for Bitcoin
         
         # Upload to Feature Store
         print(f"📤 Uploading features to Vertex AI Feature Store...")
         feature_store.ingest_features(
-            feature_group_name="bitcoin_features",
-            df=feature_df,
-            entity_column="entity_id"
+            features_df=feature_df,
+            entity_id_column="timestamp"
         )
         
         print(f"✅ Features uploaded to Vertex AI Feature Store")
