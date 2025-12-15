@@ -452,7 +452,8 @@ def main():
                         'Importance': list(feature_importance.values())
                     }).sort_values('Importance', ascending=True).tail(10)
                     
-                    fig = px.barh(importance_df, x='Importance', y='Feature', 
+                    fig = px.bar(importance_df, x='Importance', y='Feature', 
+                                 orientation='h',
                                  title=f"Top 10 Most Important Features ({method.upper()})")
                     st.plotly_chart(fig, use_container_width=True)
                 
@@ -464,7 +465,8 @@ def main():
                         'SHAP Value': shap_vals
                     }).sort_values('SHAP Value', key=abs, ascending=True).tail(10)
                     
-                    fig_shap = px.barh(shap_df, x='SHAP Value', y='Feature', 
+                    fig_shap = px.bar(shap_df, x='SHAP Value', y='Feature', 
+                                      orientation='h',
                                       color='SHAP Value', color_continuous_scale='RdBu',
                                       title="SHAP Values for Top 10 Features (Red=Push UP, Blue=Push DOWN)")
                     st.plotly_chart(fig_shap, use_container_width=True)
