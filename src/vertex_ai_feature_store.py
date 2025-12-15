@@ -146,7 +146,7 @@ class VertexAIFeatureStore:
                 df['feature_timestamp'] = ts.dt.tz_convert('UTC')
             
             # Create features if they don't exist
-            existing_features = {f.name for f in self.entity_type.list_features()}
+            existing_features = {f.name.lower() for f in self.entity_type.list_features()}
             # Exclude entity_id, feature_timestamp, and original timestamp column (reserved)
             feature_cols = [col for col in df.columns 
                           if col not in [entity_id_column, 'entity_id', 'feature_timestamp']]
@@ -155,18 +155,22 @@ class VertexAIFeatureStore:
             # Rate limit: 10/minute = need to space out by ~6+ seconds per feature
             created_count = 0
             for i, col in enumerate(feature_cols):
-                if col not in existing_features:
+                feature_id = col.lower().replace(" ", "_")
+                if feature_id not in existing_features:
                     print(f"Creating feature {i+1}/{len(feature_cols)}: {col}...")
                     Feature.create(
-                        feature_id=col.lower().replace(" ", "_"),
+                        feature_id=feature_id,
                         value_type="DOUBLE",
                         entity_type_name=self.entity_type.resource_name,
                         description=f"Bitcoin feature: {col}"
                     )
                     created_count += 1
                     # Wait 7 seconds between each feature to stay well under 10/minute quota
-                    if created_count < len([c for c in feature_cols if c not in existing_features]):
+                    new_features_count = len([col.lower().replace(" ", "_") for col in feature_cols if col.lower().replace(" ", "_") not in existing_features])
+                    if created_count < new_features_count:
                         time.sleep(7)
+                else:
+                    print(f"Skipping feature {i+1}/{len(feature_cols)}: {col} (already exists)")
 
             
             # Ingest data using BigQuery (the correct method for Vertex AI Feature Store)
