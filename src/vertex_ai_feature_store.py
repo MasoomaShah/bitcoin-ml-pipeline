@@ -131,10 +131,18 @@ class VertexAIFeatureStore:
             df = features_df.copy()
             if df[entity_id_column].dtype == 'object':
                 df[entity_id_column] = pd.to_datetime(df[entity_id_column])
+            
             # Convert to Unix timestamp integer for entity ID
             df['entity_id'] = (df[entity_id_column].astype('int64') // 10**9).astype(str)
+            
             # Convert to proper TIMESTAMP format for Vertex AI (UTC timezone aware)
-            df['feature_timestamp'] = pd.to_datetime(df[entity_id_column]).dt.tz_localize('UTC')
+            # Handle both timezone-aware and timezone-naive timestamps
+            ts = pd.to_datetime(df[entity_id_column])
+            if ts.dt.tz is None:
+                df['feature_timestamp'] = ts.dt.tz_localize('UTC')
+            else:
+                # Already timezone-aware, convert to UTC
+                df['feature_timestamp'] = ts.dt.tz_convert('UTC')
             
             # Create features if they don't exist
             existing_features = {f.name for f in self.entity_type.list_features()}
