@@ -274,8 +274,6 @@ def make_predictions(clf_model, reg_model, scaler, features, feature_columns, cu
 def main():
     """Main Streamlit app"""
     
-    st.write("DEBUG: main() function started")
-    
     # Header
     st.markdown('<div class="main-header">₿ Bitcoin ML Prediction Dashboard</div>', unsafe_allow_html=True)
     
@@ -316,14 +314,10 @@ def main():
         """)
     
     # Load model and data
-    st.write("DEBUG: Starting to load models and data...")
     try:
         with st.spinner("Loading models and data..."):
             clf_model, reg_model, scaler, feature_columns, metadata = load_latest_model()
-            st.write(f"DEBUG: load_latest_model() returned: clf={clf_model is not None}, reg={reg_model is not None}")
-            
             df_raw, df_processed = load_bitcoin_data()
-            st.write(f"DEBUG: load_bitcoin_data() returned: raw={df_raw is not None}, processed={df_processed is not None}")
     except Exception as e:
         st.error(f"ERROR during loading: {e}")
         import traceback
@@ -342,11 +336,6 @@ def main():
     if 'date' in df_raw.columns:
         last_data_time = df_raw['date'].iloc[-1]
         st.info(f"📅 Latest data: {last_data_time} | Loaded at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-    
-    # Debug: Show what features we have
-    st.write(f"DEBUG: Loaded {len(df_processed)} rows of processed data")
-    st.write(f"DEBUG: Processed data columns: {df_processed.columns.tolist()}")
-    st.write(f"DEBUG: Expected features: {feature_columns}")
     
     # Check for missing features
     missing_features = set(feature_columns) - set(df_processed.columns)
@@ -411,10 +400,12 @@ def main():
             )
         
         with col3:
+            # Make delta always show the right direction
+            delta_val = predictions['price_change_usd']
             st.metric(
                 "Expected Change",
                 f"{predictions['price_change_pct']:.2f}%",
-                delta=f"${predictions['price_change_usd']:,.2f}"
+                delta=delta_val  # Pass as number, Streamlit handles formatting
             )
             
             # Risk indicator
