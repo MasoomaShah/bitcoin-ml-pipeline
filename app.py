@@ -396,7 +396,7 @@ def main():
             st.metric(
                 "Predicted Price",
                 f"${predictions['predicted_price']:,.2f}",
-                delta=f"${predictions['price_change_usd']:,.2f}"
+                delta=predictions['price_change_usd']  # Pass as number so Streamlit shows correct color
             )
         
         with col3:
