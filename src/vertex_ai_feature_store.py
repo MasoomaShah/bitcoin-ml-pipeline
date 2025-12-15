@@ -53,14 +53,19 @@ class VertexAIFeatureStore:
             bool: True if connection successful
         """
         try:
-            # Check if feature store exists
-            try:
-                self.featurestore = Featurestore(
-                    featurestore_name=self.featurestore_id
-                )
-                print(f"✓ Connected to existing feature store: {self.featurestore_id}")
-            except:
-                # Create new feature store
+            # List existing feature stores
+            print("Checking for existing feature store...")
+            featurestores = Featurestore.list()
+            
+            # Find or create feature store
+            self.featurestore = None
+            for fs in featurestores:
+                if self.featurestore_id in fs.resource_name:
+                    self.featurestore = fs
+                    print(f"✓ Connected to existing feature store: {self.featurestore_id}")
+                    break
+            
+            if self.featurestore is None:
                 print(f"Creating new feature store: {self.featurestore_id}...")
                 self.featurestore = Featurestore.create(
                     featurestore_id=self.featurestore_id,
@@ -70,9 +75,16 @@ class VertexAIFeatureStore:
             
             # Get or create entity type for Bitcoin
             try:
-                self.entity_type = self.featurestore.get_entity_type(
-                    entity_type_id="bitcoin"
-                )
+                entity_types = self.featurestore.list_entity_types()
+                self.entity_type = None
+                for et in entity_types:
+                    if "bitcoin" in et.resource_name.lower():
+                        self.entity_type = et
+                        break
+                
+                if self.entity_type is None:
+                    raise ValueError("Entity type not found")
+                    
                 print(f"✓ Connected to entity type: bitcoin")
             except:
                 print("Creating entity type: bitcoin...")
@@ -86,6 +98,8 @@ class VertexAIFeatureStore:
             
         except Exception as e:
             print(f"✗ Failed to connect to Vertex AI: {str(e)}")
+            import traceback
+            traceback.print_exc()
             return False
     
     def ingest_features(
@@ -138,13 +152,20 @@ class VertexAIFeatureStore:
                         description=f"Bitcoin feature: {col}"
                     )
             
-            # Ingest data
+            # Ingest data using BigQuery (the correct method for Vertex AI Feature Store)
             print(f"Ingesting {len(df)} records...")
+            
+            # Prepare data for BigQuery ingestion
+            df_import = df[['entity_id', 'feature_timestamp'] + feature_cols].copy()
+            df_import.columns = ['entity_id', 'feature_timestamp'] + [col.lower().replace(" ", "_") for col in feature_cols]
+            
+            # Import from DataFrame to Feature Store
             self.entity_type.ingest_from_df(
-                feature_ids=[col.lower().replace(" ", "_") for col in feature_cols],
-                feature_time='feature_timestamp',
-                df_source=df,
+                feature_time_column='feature_timestamp',
+                df_source=df_import,
                 entity_id_field='entity_id',
+                worker_count=1,
+                thick_client=True,
             )
             
             print(f"✓ Ingested {len(df)} records successfully")
