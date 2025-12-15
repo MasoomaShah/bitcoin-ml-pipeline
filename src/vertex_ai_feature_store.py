@@ -179,6 +179,8 @@ class VertexAIFeatureStore:
             # Prepare data for BigQuery ingestion
             df_import = df[['entity_id', 'feature_timestamp'] + feature_cols].copy()
             df_import.columns = ['entity_id', 'feature_timestamp'] + [col.lower().replace(" ", "_") for col in feature_cols]
+            # Reset index to avoid numeric index conflicts with column names
+            df_import = df_import.reset_index(drop=True)
             
             # Get list of feature IDs to ingest
             feature_ids = [col.lower().replace(" ", "_") for col in feature_cols]
