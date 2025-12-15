@@ -619,6 +619,124 @@ def save_and_version_models(
     }
 
 
+@task(name="register_models_to_vertex_ai", retries=2, retry_delay_seconds=5)
+def register_models_to_vertex_ai(version_info: Dict) -> bool:
+    """
+    Register trained models to Google Cloud Vertex AI Model Registry.
+    
+    Args:
+        version_info: Dictionary with version, paths, and metadata
+        
+    Returns:
+        True if successful, False if Vertex AI is unavailable
+    """
+    try:
+        from src.vertex_ai_model_registry import VertexAIModelRegistry
+        
+        version = version_info['version']
+        clf_model_path = version_info['paths']['clf_model']
+        reg_model_path = version_info['paths']['reg_model']
+        metadata = version_info['metadata']
+        
+        print(f"\n{'='*60}")
+        print("STEP 7: REGISTER MODELS TO VERTEX AI")
+        print(f"{'='*60}")
+        
+        registry = VertexAIModelRegistry()
+        
+        # Register classification model
+        print(f"\n📤 Uploading classification model to Vertex AI...")
+        try:
+            clf_model_id = registry.upload_model(
+                model_path=clf_model_path,
+                model_name=f"bitcoin-classifier-{version}",
+                description=f"Bitcoin price direction classifier. Accuracy: {metadata['classification_metrics'].get('accuracy', 0):.4f}",
+                model_type="sklearn",
+                framework="scikit-learn"
+            )
+            print(f"✅ Classification model registered: {clf_model_id}")
+        except Exception as e:
+            print(f"⚠️ Classification model registration failed: {e}")
+        
+        # Register regression model
+        print(f"\n📤 Uploading regression model to Vertex AI...")
+        try:
+            reg_model_id = registry.upload_model(
+                model_path=reg_model_path,
+                model_name=f"bitcoin-regressor-{version}",
+                description=f"Bitcoin price regression model. RMSE: {metadata['regression_metrics'].get('rmse', 0):.4f}",
+                model_type="sklearn",
+                framework="scikit-learn"
+            )
+            print(f"✅ Regression model registered: {reg_model_id}")
+        except Exception as e:
+            print(f"⚠️ Regression model registration failed: {e}")
+        
+        print(f"\n✅ Models registered to Vertex AI Model Registry")
+        return True
+        
+    except ImportError:
+        print("⚠️  Vertex AI SDK not installed. Skipping model registration.")
+        print("   Install with: pip install google-cloud-aiplatform")
+        return False
+    except Exception as e:
+        print(f"⚠️ Vertex AI registration failed: {e}")
+        print("   Models saved locally but not registered to GCP")
+        return False
+
+
+@task(name="upload_features_to_feature_store", retries=2, retry_delay_seconds=5)
+def upload_features_to_feature_store(df_features: pd.DataFrame, feature_names: list) -> bool:
+    """
+    Upload computed features to Google Cloud Vertex AI Feature Store.
+    
+    Args:
+        df_features: DataFrame with features
+        feature_names: List of feature column names
+        
+    Returns:
+        True if successful, False if Feature Store is unavailable
+    """
+    try:
+        from src.vertex_ai_feature_store import VertexAIFeatureStore
+        
+        print(f"\n{'='*60}")
+        print("STEP 7B: UPLOAD FEATURES TO VERTEX AI FEATURE STORE")
+        print(f"{'='*60}")
+        
+        feature_store = VertexAIFeatureStore()
+        
+        # Prepare features for upload
+        print(f"📤 Preparing {len(feature_names)} features for upload...")
+        
+        # Select only the technical indicator features
+        feature_df = df_features[feature_names].copy()
+        feature_df['timestamp'] = pd.Timestamp.utcnow()
+        feature_df['entity_id'] = 'BTC_USD'  # Entity for Bitcoin
+        
+        # Upload to Feature Store
+        print(f"📤 Uploading features to Vertex AI Feature Store...")
+        feature_store.ingest_features(
+            feature_group_name="bitcoin_features",
+            df=feature_df,
+            entity_column="entity_id"
+        )
+        
+        print(f"✅ Features uploaded to Vertex AI Feature Store")
+        print(f"   Features: {len(feature_names)}")
+        print(f"   Records: {len(feature_df)}")
+        return True
+        
+    except ImportError:
+        print("⚠️  Vertex AI Feature Store SDK not installed. Skipping feature upload.")
+        print("   Install with: pip install google-cloud-aiplatform")
+        return False
+    except Exception as e:
+        print(f"⚠️ Feature Store upload failed: {e}")
+        print("   Features computed locally but not uploaded to GCP")
+        return False
+
+
 # ============================================================================
 # MAIN FLOW
 # ============================================================================
@@ -705,11 +823,20 @@ def ml_training_pipeline(
             output_dir=output_dir
         )
         
+        # Step 7: Register models to Vertex AI (optional - continues if fails)
+        vertex_ai_success = register_models_to_vertex_ai(version_info)
+        
+        # Step 7B: Upload features to Vertex AI Feature Store (optional - continues if fails)
+        feature_upload_success = upload_features_to_feature_store(df_processed, feature_cols)
+        
         # Calculate pipeline duration
         pipeline_end = datetime.utcnow()
         duration = (pipeline_end - pipeline_start).total_seconds()
         
         # Success notification
+        vertex_status = "✅" if vertex_ai_success else "⚠️ (Optional)"
+        feature_status = "✅" if feature_upload_success else "⚠️ (Optional)"
+        
         success_message = f"""
 **ML Pipeline Completed Successfully! 🎉**
 
@@ -723,6 +850,10 @@ def ml_training_pipeline(
 **Classification Metrics:**
 - Accuracy: {clf_metrics['accuracy']:.4f}
 - F1 Score: {clf_metrics['f1_score']:.4f}
+
+**Cloud Registration:**
+- {vertex_status} Vertex AI Model Registry
+- {feature_status} Feature Store Upload
 
 **Models saved to:** `{output_dir}/`
 """
