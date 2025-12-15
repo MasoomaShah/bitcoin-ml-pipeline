@@ -181,10 +181,10 @@ class VertexAIFeatureStore:
             feature_ids = [col.lower().replace(" ", "_") for col in feature_cols]
             
             # Create a dictionary for the new DataFrame
-            # Keep feature_timestamp as datetime (BigQuery will auto-detect as TIMESTAMP)
+            # Keep feature_timestamp as Series (not .values) to preserve timezone info
             data_dict = {
                 'entity_id': df['entity_id'].values,
-                'feature_timestamp': df['feature_timestamp'].values,
+                'feature_timestamp': df['feature_timestamp'],  # Keep as Series, not .values
             }
             
             # Add feature columns with normalized names
