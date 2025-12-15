@@ -196,6 +196,8 @@ class VertexAIFeatureStore:
             
         except Exception as e:
             print(f"✗ Failed to ingest features: {str(e)}")
+            import traceback
+            traceback.print_exc()
             return False
     
     def read_features(
