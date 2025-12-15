@@ -180,10 +180,14 @@ class VertexAIFeatureStore:
             # Build a clean DataFrame with no index issues
             feature_ids = [col.lower().replace(" ", "_") for col in feature_cols]
             
+            # Convert feature_timestamp to string format for BigQuery TIMESTAMP compatibility
+            # BigQuery TIMESTAMP format: 'YYYY-MM-DD HH:MM:SS.ffffff+00:00'
+            feature_timestamp_str = df['feature_timestamp'].dt.strftime('%Y-%m-%d %H:%M:%S.%f+00:00')
+            
             # Create a dictionary for the new DataFrame
             data_dict = {
                 'entity_id': df['entity_id'].values,
-                'feature_timestamp': df['feature_timestamp'].values,
+                'feature_timestamp': feature_timestamp_str.values,
             }
             
             # Add feature columns with normalized names
