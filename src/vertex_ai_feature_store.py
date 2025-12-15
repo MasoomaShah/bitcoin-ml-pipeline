@@ -185,8 +185,6 @@ class VertexAIFeatureStore:
                 feature_time='feature_timestamp',
                 df_source=df_import,
                 entity_id_field='entity_id',
-                worker_count=1,
-                thick_client=True,
             )
             
             print(f"✓ Ingested {len(df)} records successfully")
