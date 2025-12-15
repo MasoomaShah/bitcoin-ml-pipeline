@@ -177,13 +177,21 @@ class VertexAIFeatureStore:
             print(f"Ingesting {len(df)} records...")
             
             # Prepare data for BigQuery ingestion
-            df_import = df[['entity_id', 'feature_timestamp'] + feature_cols].copy()
-            df_import.columns = ['entity_id', 'feature_timestamp'] + [col.lower().replace(" ", "_") for col in feature_cols]
-            # Reset index to avoid numeric index conflicts with column names
-            df_import = df_import.reset_index(drop=True)
-            
-            # Get list of feature IDs to ingest
+            # Build a clean DataFrame with no index issues
             feature_ids = [col.lower().replace(" ", "_") for col in feature_cols]
+            
+            # Create a dictionary for the new DataFrame
+            data_dict = {
+                'entity_id': df['entity_id'].values,
+                'feature_timestamp': df['feature_timestamp'].values,
+            }
+            
+            # Add feature columns with normalized names
+            for orig_col, feature_id in zip(feature_cols, feature_ids):
+                data_dict[feature_id] = df[orig_col].values
+            
+            # Create DataFrame from dict (this avoids index issues)
+            df_import = pd.DataFrame(data_dict)
             
             # Import from DataFrame to Feature Store
             self.entity_type.ingest_from_df(
