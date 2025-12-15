@@ -25,6 +25,35 @@ A production-ready machine learning pipeline for Bitcoin price forecasting with 
 ✅ **Streamlit Dashboard** for interactive visualization  
 ✅ **SHAP/LIME** model explainability integration  
 ✅ **Discord Notifications** for pipeline alerts  
+✅ **Vertex AI Integration** (Model Registry + Feature Store capable)
+
+## Cloud Infrastructure - Vertex AI
+
+This project is designed to integrate with **Google Cloud Vertex AI** for production ML:
+
+### Feature Store (Vertex AI)
+- **Location:** Google Cloud Console → Vertex AI → Feature Store
+- **Project:** `ml-project-480417`
+- **Feature Group:** `bitcoin_features` (24 technical indicators)
+- **Status:** Currently **empty** - models train daily locally, features can be pushed to GCP
+- **How to Use:** Call `src/vertex_ai_feature_store.py` methods to register features
+
+### Model Registry (Vertex AI)
+- **Location:** Google Cloud Console → Vertex AI → Model Registry
+- **Project:** `ml-project-480417`
+- **Status:** Currently **empty** - code exists but scheduled training doesn't register models
+- **How to Use:** Call `src/vertex_ai_model_registry.py` after daily training
+
+### Daily Model Training
+✅ **Runs successfully every day** at 2 AM UTC via GitHub Actions  
+✅ **Saves locally** to `models/v{timestamp}_*` files  
+⚠️ **NOT registered to Vertex AI** - would require modifying `prefect/flows/ml_pipeline.py` to call registration code
+
+**Why Feature Store & Registry are empty:**
+1. Daily training runs via `test_prefect_pipeline.py` → `prefect/flows/ml_pipeline.py`
+2. Pipeline saves models locally but doesn't call Vertex AI upload methods
+3. Feature collection runs hourly but stores features locally in CSV, not in GCP Feature Store
+4. **To enable:** Uncomment Vertex AI registration code in training pipeline (see `src/train_with_feature_store.py` for reference)  
 
 ## Quick Start
 
