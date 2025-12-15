@@ -4,6 +4,7 @@ Manages Bitcoin features in Google Cloud Vertex AI
 """
 
 import os
+import time
 import pandas as pd
 from datetime import datetime
 from typing import Optional, Dict, List
@@ -150,7 +151,9 @@ class VertexAIFeatureStore:
             feature_cols = [col for col in df.columns 
                           if col not in [entity_id_column, 'entity_id', 'feature_timestamp']]
             
-            for col in feature_cols:
+            # Create features in batches to respect rate limits (10 per minute max)
+            batch_size = 8
+            for i, col in enumerate(feature_cols):
                 if col not in existing_features:
                     print(f"Creating feature: {col}...")
                     Feature.create(
@@ -159,6 +162,10 @@ class VertexAIFeatureStore:
                         entity_type_name=self.entity_type.resource_name,
                         description=f"Bitcoin feature: {col}"
                     )
+                    # Wait between batches to avoid rate limiting (10 per minute = ~6 sec per feature)
+                    if (i + 1) % batch_size == 0:
+                        print(f"   Batch complete. Waiting 5 seconds to avoid rate limiting...")
+                        time.sleep(5)
             
             # Ingest data using BigQuery (the correct method for Vertex AI Feature Store)
             print(f"Ingesting {len(df)} records...")
