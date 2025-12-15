@@ -706,6 +706,12 @@ def upload_features_to_feature_store(df_features: pd.DataFrame, feature_names: l
         
         feature_store = VertexAIFeatureStore()
         
+        # Connect to Feature Store (creates if doesn't exist)
+        print(f"📤 Connecting to Vertex AI Feature Store...")
+        if not feature_store.connect():
+            print(f"⚠️  Failed to connect to Feature Store. Skipping upload.")
+            return False
+        
         # Prepare features for upload
         print(f"📤 Preparing {len(feature_names)} features for upload...")
         
