@@ -151,21 +151,23 @@ class VertexAIFeatureStore:
             feature_cols = [col for col in df.columns 
                           if col not in [entity_id_column, 'entity_id', 'feature_timestamp']]
             
-            # Create features in batches to respect rate limits (10 per minute max)
-            batch_size = 8
+            # Create features with delays to respect rate limits (10 per minute max)
+            # Rate limit: 10/minute = need to space out by ~6+ seconds per feature
+            created_count = 0
             for i, col in enumerate(feature_cols):
                 if col not in existing_features:
-                    print(f"Creating feature: {col}...")
+                    print(f"Creating feature {i+1}/{len(feature_cols)}: {col}...")
                     Feature.create(
                         feature_id=col.lower().replace(" ", "_"),
                         value_type="DOUBLE",
                         entity_type_name=self.entity_type.resource_name,
                         description=f"Bitcoin feature: {col}"
                     )
-                    # Wait between batches to avoid rate limiting (10 per minute = ~6 sec per feature)
-                    if (i + 1) % batch_size == 0:
-                        print(f"   Batch complete. Waiting 5 seconds to avoid rate limiting...")
-                        time.sleep(5)
+                    created_count += 1
+                    # Wait 7 seconds between each feature to stay well under 10/minute quota
+                    if created_count < len([c for c in feature_cols if c not in existing_features]):
+                        time.sleep(7)
+
             
             # Ingest data using BigQuery (the correct method for Vertex AI Feature Store)
             print(f"Ingesting {len(df)} records...")
