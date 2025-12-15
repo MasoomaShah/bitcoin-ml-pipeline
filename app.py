@@ -420,123 +420,6 @@ def main():
             # Risk indicator
             risk_level = "High" if abs(predictions['price_change_pct']) > 2 else "Medium" if abs(predictions['price_change_pct']) > 1 else "Low"
             st.metric("Volatility Risk", risk_level)
-        
-        # ==================== SHAP Explainability ====================
-        st.divider()
-        st.subheader("🔍 Prediction Explanation (SHAP)")
-        
-        col1, col2 = st.columns([1, 3])
-        
-        with col1:
-            if st.button("📊 Explain This Prediction", key="explain_btn", use_container_width=True):
-                with st.spinner("Calculating SHAP explanations... (this may take 10-30 seconds on first run)"):
-                    try:
-                        # Prepare features for API call
-                        features_dict = dict(zip(feature_columns, latest_features[feature_columns].values[0].tolist()))
-                        
-                        # Call API endpoint
-                        response = requests.post(
-                            "http://localhost:8000/explain",
-                            json={"features": features_dict},
-                            timeout=120  # SHAP computation can take time
-                        )
-                        
-                        if response.status_code == 200:
-                            explanation = response.json()
-                            
-                            # Display SHAP explanation
-                            method = explanation.get('explanation_method', 'shap')
-                            st.success(f"✅ Explanation generated using {method.upper()}!")
-                            
-                            # Feature importance bar chart
-                            feature_importance = explanation.get('feature_importance', {})
-                            if feature_importance:
-                                importance_df = pd.DataFrame({
-                                    'Feature': list(feature_importance.keys()),
-                                    'Importance': list(feature_importance.values())
-                                }).sort_values('Importance', ascending=True).tail(10)
-                                
-                                fig_importance = px.barh(
-                                    importance_df,
-                                    x='Importance',
-                                    y='Feature',
-                                    title=f"Top 10 Most Important Features ({method.upper()})",
-                                    labels={'Importance': 'Impact on Prediction', 'Feature': ''}
-                                )
-                                st.plotly_chart(fig_importance, use_container_width=True)
-                            
-                            # Show SHAP values if available
-                            shap_vals = explanation.get('shap_values', [])
-                            if shap_vals:
-                                st.write("**SHAP Values (impact of each feature):**")
-                                shap_df = pd.DataFrame({
-                                    'Feature': feature_columns,
-                                    'SHAP Value': shap_vals
-                                }).sort_values('SHAP Value', key=abs, ascending=True).tail(10)
-                                
-                                fig_shap = px.barh(
-                                    shap_df,
-                                    x='SHAP Value',
-                                    y='Feature',
-                                    color='SHAP Value',
-                                    color_continuous_scale='RdBu',
-                                    title="SHAP Values for Top 10 Features",
-                                    labels={'SHAP Value': 'SHAP Value', 'Feature': ''}
-                                )
-                                st.plotly_chart(fig_shap, use_container_width=True)
-                            
-                            # Show detailed metrics
-                            with st.expander("📋 Detailed Explanation Metrics"):
-                                exp_col1, exp_col2 = st.columns(2)
-                                
-                                with exp_col1:
-                                    base_val = explanation.get('base_value', 0)
-                                    if base_val is not None:
-                                        st.metric(
-                                            "Base Value (Model Average)",
-                                            f"{base_val:.4f}",
-                                            help="The average prediction the model makes"
-                                        )
-                                    
-                                    st.metric(
-                                        "Prediction Confidence",
-                                        f"{predictions['direction_confidence']:.1f}%",
-                                        help="Confidence of the direction prediction"
-                                    )
-                                
-                                with exp_col2:
-                                    st.write("**Top Contributing Features:**")
-                                    sorted_features = sorted(feature_importance.items(), key=lambda x: abs(x[1]), reverse=True)[:5]
-                                    for feature_name, importance_val in sorted_features:
-                                        st.write(f"• **{feature_name}**: {importance_val:.4f}")
-                                
-                                st.write(f"**Explanation Method:** {method.upper()}")
-                        
-                        else:
-                            st.error(f"❌ API Error: Status {response.status_code}")
-                            if response.status_code == 504:
-                                st.warning("⏱️ SHAP computation timed out. Try again - it's faster on subsequent requests.")
-                            st.info("Make sure the API server is running on localhost:8000")
-                    
-                    except requests.exceptions.Timeout:
-                        st.warning("⏱️ Request timed out. SHAP computation can take 10-30 seconds on first run.")
-                        st.info("Try clicking the button again - it will be faster!")
-                    except requests.exceptions.ConnectionError:
-                        st.error("❌ Cannot connect to API server")
-                        st.info("Start the API with: `python -m uvicorn api_server:app --port 8000`")
-                    except Exception as e:
-                        st.error(f"❌ Error: {e}")
-        
-        with col2:
-            st.info(
-                "💡 **How to interpret SHAP values:**\n\n"
-                "• **Positive values** push prediction towards UP ⬆️\n"
-                "• **Negative values** push prediction towards DOWN ⬇️\n"
-                "• **Larger absolute values** = stronger influence on prediction\n"
-                "• **Base Value** = average prediction before considering features\n"
-                "• **SHAP** uses game theory to fairly distribute feature importance"
-            )
-
     
     st.divider()
     
@@ -545,6 +428,56 @@ def main():
     price_chart = create_price_chart(df_raw.tail(100), predictions)
     if price_chart:
         st.plotly_chart(price_chart, use_container_width=True)
+    
+    # ==================== SHAP EXPLAINABILITY - MOVED TO BOTTOM ====================
+    st.divider()
+    st.markdown("## 🔍 Get SHAP Explanation for Predictions")
+    
+    if st.button("📊 EXPLAIN THIS PREDICTION", use_container_width=True, key="explain_main"):
+        st.info("⏳ Calculating SHAP explanations... (10-30 seconds on first run)")
+        try:
+            if predictions:
+                features_dict = dict(zip(feature_columns, latest_features[feature_columns].values[0].tolist()))
+                response = requests.post("http://localhost:8000/explain", json={"features": features_dict}, timeout=120)
+                
+                if response.status_code == 200:
+                    explanation = response.json()
+                    method = explanation.get('explanation_method', 'shap')
+                    st.success(f"✅ Explanation generated using {method.upper()}!")
+                    
+                    # Feature importance
+                    feature_importance = explanation.get('feature_importance', {})
+                    if feature_importance:
+                        importance_df = pd.DataFrame({
+                            'Feature': list(feature_importance.keys()),
+                            'Importance': list(feature_importance.values())
+                        }).sort_values('Importance', ascending=True).tail(10)
+                        
+                        fig = px.barh(importance_df, x='Importance', y='Feature', 
+                                     title=f"Top 10 Most Important Features ({method.upper()})")
+                        st.plotly_chart(fig, use_container_width=True)
+                    
+                    # SHAP values
+                    shap_vals = explanation.get('shap_values', [])
+                    if shap_vals:
+                        shap_df = pd.DataFrame({
+                            'Feature': feature_columns,
+                            'SHAP Value': shap_vals
+                        }).sort_values('SHAP Value', key=abs, ascending=True).tail(10)
+                        
+                        fig_shap = px.barh(shap_df, x='SHAP Value', y='Feature', 
+                                          color='SHAP Value', color_continuous_scale='RdBu',
+                                          title="SHAP Values for Top 10 Features")
+                        st.plotly_chart(fig_shap, use_container_width=True)
+                else:
+                    st.error(f"❌ API Error: Status {response.status_code}")
+                    st.info("Make sure API is running: `python -m uvicorn api_server:app --port 8000`")
+        except requests.exceptions.Timeout:
+            st.warning("⏱️ Request timed out. Try again - it's faster on subsequent clicks!")
+        except Exception as e:
+            st.error(f"❌ Error: {e}")
+    
+    st.info("💡 Click the button above to see which features matter most for Bitcoin price predictions!")
     
     # Technical indicators
     if show_technical and 'RSI' in df_raw.columns:
