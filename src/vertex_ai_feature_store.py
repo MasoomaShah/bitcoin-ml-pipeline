@@ -180,8 +180,12 @@ class VertexAIFeatureStore:
             df_import = df[['entity_id', 'feature_timestamp'] + feature_cols].copy()
             df_import.columns = ['entity_id', 'feature_timestamp'] + [col.lower().replace(" ", "_") for col in feature_cols]
             
+            # Get list of feature IDs to ingest
+            feature_ids = [col.lower().replace(" ", "_") for col in feature_cols]
+            
             # Import from DataFrame to Feature Store
             self.entity_type.ingest_from_df(
+                feature_ids=feature_ids,
                 feature_time='feature_timestamp',
                 df_source=df_import,
                 entity_id_field='entity_id',
