@@ -429,55 +429,62 @@ def main():
     if price_chart:
         st.plotly_chart(price_chart, use_container_width=True)
     
-    # ==================== SHAP EXPLAINABILITY - MOVED TO BOTTOM ====================
-    st.divider()
-    st.markdown("## 🔍 Get SHAP Explanation for Predictions")
-    
-    if st.button("📊 EXPLAIN THIS PREDICTION", use_container_width=True, key="explain_main"):
-        st.info("⏳ Calculating SHAP explanations... (10-30 seconds on first run)")
+    # ==================== SHAP EXPLAINABILITY - AUTO DISPLAY ====================
+    if predictions:
+        st.divider()
+        st.markdown("## 🔍 SHAP Explanation - Why This Prediction?")
+        st.info("⏳ Calculating SHAP explanations... (This may take 10-30 seconds on first run)")
+        
         try:
-            if predictions:
-                features_dict = dict(zip(feature_columns, latest_features[feature_columns].values[0].tolist()))
-                response = requests.post("http://localhost:8000/explain", json={"features": features_dict}, timeout=120)
+            features_dict = dict(zip(feature_columns, latest_features[feature_columns].values[0].tolist()))
+            response = requests.post("http://localhost:8000/explain", json={"features": features_dict}, timeout=120)
+            
+            if response.status_code == 200:
+                explanation = response.json()
+                method = explanation.get('explanation_method', 'shap')
+                st.success(f"✅ Explanation generated using {method.upper()}!")
                 
-                if response.status_code == 200:
-                    explanation = response.json()
-                    method = explanation.get('explanation_method', 'shap')
-                    st.success(f"✅ Explanation generated using {method.upper()}!")
+                # Feature importance
+                feature_importance = explanation.get('feature_importance', {})
+                if feature_importance:
+                    importance_df = pd.DataFrame({
+                        'Feature': list(feature_importance.keys()),
+                        'Importance': list(feature_importance.values())
+                    }).sort_values('Importance', ascending=True).tail(10)
                     
-                    # Feature importance
-                    feature_importance = explanation.get('feature_importance', {})
-                    if feature_importance:
-                        importance_df = pd.DataFrame({
-                            'Feature': list(feature_importance.keys()),
-                            'Importance': list(feature_importance.values())
-                        }).sort_values('Importance', ascending=True).tail(10)
-                        
-                        fig = px.barh(importance_df, x='Importance', y='Feature', 
-                                     title=f"Top 10 Most Important Features ({method.upper()})")
-                        st.plotly_chart(fig, use_container_width=True)
+                    fig = px.barh(importance_df, x='Importance', y='Feature', 
+                                 title=f"Top 10 Most Important Features ({method.upper()})")
+                    st.plotly_chart(fig, use_container_width=True)
+                
+                # SHAP values
+                shap_vals = explanation.get('shap_values', [])
+                if shap_vals:
+                    shap_df = pd.DataFrame({
+                        'Feature': feature_columns,
+                        'SHAP Value': shap_vals
+                    }).sort_values('SHAP Value', key=abs, ascending=True).tail(10)
                     
-                    # SHAP values
-                    shap_vals = explanation.get('shap_values', [])
-                    if shap_vals:
-                        shap_df = pd.DataFrame({
-                            'Feature': feature_columns,
-                            'SHAP Value': shap_vals
-                        }).sort_values('SHAP Value', key=abs, ascending=True).tail(10)
-                        
-                        fig_shap = px.barh(shap_df, x='SHAP Value', y='Feature', 
-                                          color='SHAP Value', color_continuous_scale='RdBu',
-                                          title="SHAP Values for Top 10 Features")
-                        st.plotly_chart(fig_shap, use_container_width=True)
-                else:
-                    st.error(f"❌ API Error: Status {response.status_code}")
-                    st.info("Make sure API is running: `python -m uvicorn api_server:app --port 8000`")
+                    fig_shap = px.barh(shap_df, x='SHAP Value', y='Feature', 
+                                      color='SHAP Value', color_continuous_scale='RdBu',
+                                      title="SHAP Values for Top 10 Features (Red=Push UP, Blue=Push DOWN)")
+                    st.plotly_chart(fig_shap, use_container_width=True)
+            else:
+                st.error(f"❌ API Error: Status {response.status_code}")
+                st.warning(f"Response: {response.text[:200]}")
+                st.error("⚙️ Cannot connect to API. Make sure API is running:")
+                st.code("python -m uvicorn api_server:app --host 0.0.0.0 --port 8000", language="bash")
         except requests.exceptions.Timeout:
-            st.warning("⏱️ Request timed out. Try again - it's faster on subsequent clicks!")
+            st.error("❌ Request timed out (took more than 120 seconds)")
+            st.warning("⏱️ SHAP computation is very slow on first run. Restart API and refresh page.")
+        except requests.exceptions.ConnectionError:
+            st.error("❌ Could not connect to API server on localhost:8000")
+            st.warning("Make sure API is running on port 8000!")
+            st.code("python -m uvicorn api_server:app --host 0.0.0.0 --port 8000", language="bash")
         except Exception as e:
-            st.error(f"❌ Error: {e}")
-    
-    st.info("💡 Click the button above to see which features matter most for Bitcoin price predictions!")
+            st.error(f"❌ Error: {str(e)}")
+            st.warning(f"Error type: {type(e).__name__}")
+            with st.expander("📋 Full Error Details"):
+                st.write(str(e))
     
     # Technical indicators
     if show_technical and 'RSI' in df_raw.columns:
