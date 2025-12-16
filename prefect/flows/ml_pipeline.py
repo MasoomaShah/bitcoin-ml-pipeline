@@ -363,15 +363,31 @@ def train_regression_model(
         try:
             from tensorflow.keras.callbacks import EarlyStopping
             
+            # Convert to DataFrame if needed for .iloc indexing
+            if not isinstance(X_train, pd.DataFrame):
+                X_train_df = pd.DataFrame(X_train)
+                X_test_df = pd.DataFrame(X_test)
+            else:
+                X_train_df = X_train
+                X_test_df = X_test
+            
+            # Convert Series to Series if needed
+            if not isinstance(y_train, pd.Series):
+                y_train_series = pd.Series(y_train)
+                y_test_series = pd.Series(y_test)
+            else:
+                y_train_series = y_train
+                y_test_series = y_test
+            
             # Prepare sequences for LSTM (lookback=7 days)
             lookback = 7
-            X_train_seq = np.array([X_train.iloc[i:i+lookback].values for i in range(len(X_train)-lookback)])
-            y_train_seq = y_train.iloc[lookback:].values
-            X_test_seq = np.array([X_test.iloc[i:i+lookback].values for i in range(len(X_test)-lookback)])
-            y_test_seq = y_test.iloc[lookback:].values
+            X_train_seq = np.array([X_train_df.iloc[i:i+lookback].values for i in range(len(X_train_df)-lookback)])
+            y_train_seq = y_train_series.iloc[lookback:].values
+            X_test_seq = np.array([X_test_df.iloc[i:i+lookback].values for i in range(len(X_test_df)-lookback)])
+            y_test_seq = y_test_series.iloc[lookback:].values
             
             lstm_model = Sequential([
-                LSTM(64, return_sequences=True, input_shape=(lookback, X_train.shape[1])),
+                LSTM(64, return_sequences=True, input_shape=(lookback, X_train_df.shape[1])),
                 Dropout(0.2),
                 LSTM(32),
                 Dropout(0.2),
@@ -399,15 +415,31 @@ def train_regression_model(
         try:
             from tensorflow.keras.callbacks import EarlyStopping
             
+            # Convert to DataFrame if needed for .iloc indexing
+            if not isinstance(X_train, pd.DataFrame):
+                X_train_df = pd.DataFrame(X_train)
+                X_test_df = pd.DataFrame(X_test)
+            else:
+                X_train_df = X_train
+                X_test_df = X_test
+            
+            # Convert Series to Series if needed
+            if not isinstance(y_train, pd.Series):
+                y_train_series = pd.Series(y_train)
+                y_test_series = pd.Series(y_test)
+            else:
+                y_train_series = y_train
+                y_test_series = y_test
+            
             # Reuse sequences from LSTM
             lookback = 7
-            X_train_seq = np.array([X_train.iloc[i:i+lookback].values for i in range(len(X_train)-lookback)])
-            y_train_seq = y_train.iloc[lookback:].values
-            X_test_seq = np.array([X_test.iloc[i:i+lookback].values for i in range(len(X_test)-lookback)])
-            y_test_seq = y_test.iloc[lookback:].values
+            X_train_seq = np.array([X_train_df.iloc[i:i+lookback].values for i in range(len(X_train_df)-lookback)])
+            y_train_seq = y_train_series.iloc[lookback:].values
+            X_test_seq = np.array([X_test_df.iloc[i:i+lookback].values for i in range(len(X_test_df)-lookback)])
+            y_test_seq = y_test_series.iloc[lookback:].values
             
             gru_model = Sequential([
-                GRU(64, return_sequences=True, input_shape=(lookback, X_train.shape[1])),
+                GRU(64, return_sequences=True, input_shape=(lookback, X_train_df.shape[1])),
                 Dropout(0.2),
                 GRU(32),
                 Dropout(0.2),
@@ -433,22 +465,30 @@ def train_regression_model(
     if PROPHET_AVAILABLE:
         print("  6. Training Prophet...")
         try:
+            # Convert Series to Series if needed
+            if not isinstance(y_train, pd.Series):
+                y_train_series = pd.Series(y_train)
+                y_test_series = pd.Series(y_test)
+            else:
+                y_train_series = y_train
+                y_test_series = y_test
+            
             # Prepare data for Prophet
             df_prophet = pd.DataFrame({
-                'ds': pd.date_range(end=datetime.now(), periods=len(y_train), freq='D'),
-                'y': y_train.values
+                'ds': pd.date_range(end=datetime.now(), periods=len(y_train_series), freq='D'),
+                'y': y_train_series.values
             })
             
             prophet_model = Prophet(yearly_seasonality=False, weekly_seasonality=True, daily_seasonality=False, interval_width=0.95)
             prophet_model.fit(df_prophet)
             
             # Forecast for test period
-            future = prophet_model.make_future_dataframe(periods=len(y_test))
+            future = prophet_model.make_future_dataframe(periods=len(y_test_series))
             forecast = prophet_model.predict(future)
-            prophet_pred = forecast['yhat'].tail(len(y_test)).values
+            prophet_pred = forecast['yhat'].tail(len(y_test_series)).values
             
-            prophet_rmse = np.sqrt(mean_squared_error(y_test, prophet_pred))
-            prophet_r2 = r2_score(y_test, prophet_pred)
+            prophet_rmse = np.sqrt(mean_squared_error(y_test_series, prophet_pred))
+            prophet_r2 = r2_score(y_test_series, prophet_pred)
             models_to_test['Prophet'] = prophet_model
             results['Prophet'] = {'rmse': prophet_rmse, 'r2': prophet_r2}
             print(f"     ✓ RMSE: {prophet_rmse:.4f}, R²: {prophet_r2:.4f}")
