@@ -252,7 +252,7 @@ jobs:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK }}
         run: |
           echo "Starting daily model training at $(date)"
-          python -m prefect.flows.ml_pipeline
+          python prefect/flows/ml_pipeline.py
           echo "Training completed at $(date)"
 
       - name: Commit and push updated CSV to repo
