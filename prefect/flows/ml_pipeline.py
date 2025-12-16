@@ -1197,7 +1197,7 @@ def ml_training_pipeline(
 if __name__ == "__main__":
     # Run the pipeline locally
     result = ml_training_pipeline(
-        data_path="data/raw/world_bank_gdp.csv",
+        data_path="data/raw/bitcoin_timeseries.csv",
         notification_type="discord"  # Change to slack or email as needed
     )
     
