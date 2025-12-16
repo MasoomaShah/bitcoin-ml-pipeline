@@ -62,17 +62,17 @@ def fetch_bitcoin_data(days=365, vs_currency='usd'):
         # Reorder columns
         df = df[['date', 'price', 'market_cap', 'volume']]
         
-        print(f"✓ Successfully fetched {len(df)} data points")
+        print(f"[OK] Successfully fetched {len(df)} data points")
         print(f"  Date range: {df['date'].min()} to {df['date'].max()}")
         print(f"  Price range: ${df['price'].min():.2f} - ${df['price'].max():.2f}")
         
         return df
         
     except requests.exceptions.RequestException as e:
-        print(f"✗ Error fetching data from CoinGecko: {e}")
+        print(f"[ERR] Error fetching data from CoinGecko: {e}")
         raise
     except KeyError as e:
-        print(f"✗ Unexpected API response format: {e}")
+        print(f"[ERR] Unexpected API response format: {e}")
         raise
 
 
@@ -200,7 +200,7 @@ def save_bitcoin_data(output_path='data/raw/bitcoin_timeseries.csv', days=365):
     
     # Save to CSV
     df.to_csv(output_path, index=False)
-    print(f"\n✓ Data saved to: {output_path}")
+    print(f"\n[OK] Data saved to: {output_path}")
     print(f"  Shape: {df.shape}")
     print(f"  Columns: {', '.join(df.columns.tolist())}")
     
@@ -228,5 +228,5 @@ if __name__ == "__main__":
     print(df.describe())
     
     print("\n" + "="*70)
-    print("✓ Bitcoin data ready for ML pipeline!")
+    print("[OK] Bitcoin data ready for ML pipeline!")
     print("="*70)

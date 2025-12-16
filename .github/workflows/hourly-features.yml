@@ -49,54 +49,20 @@ jobs:
           print(f'Timestamp: {datetime.utcnow().isoformat()}Z')
           print()
           
-          # Check if Alpha Vantage key exists
-          api_key = os.environ.get('ALPHA_VANTAGE_API_KEY')
-          if not api_key:
-              print('⚠️ ALPHA_VANTAGE_API_KEY not set')
-              print('Using mock data for testing...')
+          # Fetch Bitcoin data from CoinGecko (no API key required)
+          sys.path.insert(0, '.')
+          
+          try:
+              from src.fetch_bitcoin_data import fetch_bitcoin_data
+              from src.preprocess_bitcoin import preprocess_bitcoin_data
               
-              # Create mock data
-              import numpy as np
-              dates = pd.date_range(end=datetime.now(), periods=100, freq='D')
-              mock_data = pd.DataFrame({
-                  'date': dates,
-                  'open': np.random.uniform(40000, 50000, 100),
-                  'high': np.random.uniform(50000, 55000, 100),
-                  'low': np.random.uniform(35000, 40000, 100),
-                  'close': np.random.uniform(40000, 50000, 100),
-                  'volume': np.random.uniform(1000000, 5000000, 100)
-              })
+              print('1. Fetching Bitcoin data from CoinGecko...')
+              raw_data = fetch_bitcoin_data(days=365)
+              print(f'   ✓ Fetched {len(raw_data)} records')
               
-              # Add simple moving averages
-              mock_data['sma_7'] = mock_data['close'].rolling(7).mean()
-              mock_data['sma_14'] = mock_data['close'].rolling(14).mean()
-              mock_data['sma_30'] = mock_data['close'].rolling(30).mean()
-              
-              # Save
-              os.makedirs('data/features', exist_ok=True)
-              timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
-              output_path = f'data/features/btc_features_{timestamp}.csv'
-              mock_data.to_csv(output_path, index=False)
-              
-              print(f'✓ Mock data saved: {output_path}')
-              print(f'  Records: {len(mock_data)}')
-              print(f'  Features: {list(mock_data.columns)}')
-              
-          else:
-              # Import real fetching code
-              sys.path.insert(0, '.')
-              
-              try:
-                  from src.fetch_alpha_vantage import fetch_crypto_with_indicators
-                  from src.preprocess_bitcoin import preprocess_bitcoin_data
-                  
-                  print('1. Fetching Bitcoin data from Alpha Vantage...')
-                  raw_data = fetch_crypto_with_indicators(symbol='BTC', market='USD', days=365)
-                  print(f'   ✓ Fetched {len(raw_data)} records')
-                  
-                  print('2. Computing technical indicators...')
-                  features_df, scaler = preprocess_bitcoin_data(raw_data, drop_date=False)
-                  print(f'   ✓ Generated {len(features_df.columns)} features')
+              print('2. Computing technical indicators...')
+              features_df, scaler = preprocess_bitcoin_data(raw_data, drop_date=False)
+              print(f'   ✓ Generated {len(features_df.columns)} features')
                   
                   # Save features
                   os.makedirs('data/features', exist_ok=True)

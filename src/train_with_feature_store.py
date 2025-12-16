@@ -93,7 +93,7 @@ def train_with_feature_store(
             
             # For training, use the same feature engineering pipeline that was used to populate the store
             # This ensures consistency between training and the features stored in Vertex AI
-            from src.fetch_alpha_vantage import fetch_crypto_with_indicators
+            from src.fetch_bitcoin_data import fetch_bitcoin_data
             from src.preprocess_bitcoin import preprocess_bitcoin_data, create_classification_target
             
             raw_data = fetch_crypto_with_indicators(symbol='BTC', market='USD', days=1095)

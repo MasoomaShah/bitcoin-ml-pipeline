@@ -6,7 +6,7 @@ Run this to upload features to Hopsworks for the first time or to update
 import pandas as pd
 from datetime import datetime
 from src.feature_store import BitcoinFeatureStore
-from src.fetch_alpha_vantage import fetch_crypto_with_indicators
+from src.fetch_bitcoin_data import fetch_bitcoin_data
 from src.preprocess_bitcoin import preprocess_bitcoin_data
 
 def populate_features(days: int = 1095):
@@ -30,8 +30,8 @@ def populate_features(days: int = 1095):
     print()
     
     # 2. Fetch raw data
-    print(f"2. Fetching {days} days of Bitcoin data from Alpha Vantage...")
-    raw_data = fetch_crypto_with_indicators(symbol='BTC', market='USD', days=days)
+    print(f"2. Fetching {days} days of Bitcoin data from CoinGecko...")
+    raw_data = fetch_bitcoin_data(days=days)
     print(f"   ✓ Fetched {len(raw_data)} data points")
     print()
     

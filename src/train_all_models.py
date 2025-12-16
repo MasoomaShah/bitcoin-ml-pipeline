@@ -29,7 +29,7 @@ sys.path.insert(0, str(project_root))
 
 from src.model_experiments import ModelExperiments
 from src.deep_learning_models import DeepLearningModels, ProphetModel, KERAS_AVAILABLE, PROPHET_AVAILABLE
-from src.fetch_alpha_vantage import fetch_crypto_with_indicators
+from src.fetch_bitcoin_data import fetch_bitcoin_data
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 import joblib

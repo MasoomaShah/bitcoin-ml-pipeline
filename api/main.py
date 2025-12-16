@@ -1,6 +1,6 @@
 """
-FastAPI server for World Bank GDP growth prediction.
-Supports both regression (predict GDP growth %) and classification (predict high/low growth).
+FastAPI server for Bitcoin price prediction.
+Supports both regression (predict price) and classification (predict high/low growth).
 """
 
 from fastapi import FastAPI, HTTPException, UploadFile, File
@@ -22,7 +22,7 @@ if project_root not in sys.path:
 
 from src.preprocess_timeseries import preprocess_timeseries_data
 
-app = FastAPI(title="World Bank GDP Growth Predictor", version="1.0")
+app = FastAPI(title="Bitcoin Price Predictor API", version="1.0")
 
 # Load models and artifacts from project root
 model_dir = project_root
@@ -164,19 +164,63 @@ print(f"{'='*60}\n")
 
 
 # Define input models
-class EconomicIndicators(BaseModel):
-    """Input model for economic indicators."""
-    GDP: float
-    Population: float
-    Inflation: float
-    Unemployment: float
-    GDP_rolling3: float
+class BitcoinFeatures(BaseModel):
+    """Input model for Bitcoin technical indicators."""
+    price: float
+    market_cap: float
+    volume: float
+    price_smooth: float
+    price_ma3: float
+    price_ma7: float
+    price_ma14: float
+    price_ma30: float
+    price_ema7: float
+    price_ema14: float
+    momentum_3d: float
+    momentum_7d: float
+    momentum_14d: float
+    roc_3d: float
+    roc_7d: float
+    price_volatility_3d: float
+    price_volatility_7d: float
+    price_volatility_14d: float
+    volume_ma3: float
+    volume_ma7: float
+    volume_change: float
+    price_to_ma7: float
+    price_to_ma30: float
+    bb_middle: float
+    bb_std: float
+    bb_upper: float
+    bb_lower: float
+    bb_position: float
+    rsi_14: float
+    market_cap_change: float
+    volume_to_marketcap: float
+    SMA_7: float
+    SMA_14: float
+    SMA_30: float
+    EMA_7: float
+    EMA_14: float
+    momentum_7: float
+    momentum_14: float
+    momentum_30: float
+    volatility_7: float
+    volatility_14: float
+    RSI: float
+    MACD: float
+    MACD_signal: float
+    BB_middle: float
+    BB_upper: float
+    BB_lower: float
+    BB_width: float
+    volume_SMA_7: float
 
 
 class BatchPredictionInput(BaseModel):
     """Input for batch predictions with historical data."""
     date: str = None  # Optional date string for reference
-    indicators: EconomicIndicators
+    indicators: BitcoinFeatures
 
 
 # Endpoints
@@ -184,9 +228,9 @@ class BatchPredictionInput(BaseModel):
 def home():
     """Health check endpoint."""
     return {
-        "message": "World Bank GDP Growth Predictor API is running!",
-        "domain": "Economic Indicators - GDP Growth Prediction",
-        "models": "Regression (GDP % growth) + Classification (High/Low growth)"
+        "message": "Bitcoin Price Predictor API is running!",
+        "domain": "Cryptocurrency - Bitcoin Price Prediction",
+        "models": "Regression (Price prediction) + Classification (High/Low growth)"
     }
 
 
@@ -209,44 +253,46 @@ def get_feature_columns():
 
 
 @app.post("/predict/regression")
-def predict_regression(indicators: EconomicIndicators):
+def predict_regression(indicators: BitcoinFeatures):
     """
-    Predict GDP growth (%) using economic indicators.
-    Returns the predicted GDP growth rate.
+    Predict Bitcoin price change (normalized) using technical indicators.
+    Returns the predicted price change value.
     """
     try:
         if reg_model is None or scaler is None or feature_columns is None:
             raise HTTPException(status_code=500, detail="Models or artifacts not loaded")
         
-        # Create DataFrame with provided indicators
-        data = {
-            'GDP': [indicators.GDP],
-            'Population': [indicators.Population],
-            'Inflation': [indicators.Inflation],
-            'Unemployment': [indicators.Unemployment],
-            'GDP_rolling3': [indicators.GDP_rolling3]
-        }
+        # Create DataFrame with provided indicators - use feature_columns to ensure correct order
+        data = {}
+        for col in feature_columns:
+            if hasattr(indicators, col):
+                data[col] = [getattr(indicators, col)]
+            else:
+                raise HTTPException(status_code=400, detail=f"Missing feature: {col}")
+        
         df = pd.DataFrame(data)
         
-        # Preprocess using the loaded scaler
-        df_processed, _, _ = preprocess_timeseries_data(df, scaler=scaler, drop_date=True)
+        # Add dummy target columns that scaler was fitted with
+        df['future_price_change'] = 0.0
+        df['market_class'] = 1
         
-        # Ensure feature order matches training
-        X = df_processed[feature_columns].values
+        # Get scaler column order
+        scaler_columns = list(scaler.feature_names_in_)
+        
+        # Scale all columns
+        X_all = scaler.transform(df[scaler_columns].values)
+        
+        # Extract only the feature columns for model prediction
+        feature_indices = [scaler_columns.index(f) for f in feature_columns]
+        X = X_all[:, feature_indices]
         
         # Predict
         prediction = reg_model.predict(X)[0]
         
         return {
             "prediction": float(prediction),
-            "interpretation": f"Predicted GDP growth: {float(prediction)*100:.2f}%",
-            "input_indicators": {
-                "GDP": indicators.GDP,
-                "Population": indicators.Population,
-                "Inflation": indicators.Inflation,
-                "Unemployment": indicators.Unemployment,
-                "GDP_rolling3": indicators.GDP_rolling3
-            }
+            "interpretation": f"Predicted normalized price change: {float(prediction):.4f}",
+            "features_used": feature_columns
         }
     
     except HTTPException:
@@ -258,49 +304,51 @@ def predict_regression(indicators: EconomicIndicators):
 
 
 @app.post("/predict/classification")
-def predict_classification(indicators: EconomicIndicators):
+def predict_classification(indicators: BitcoinFeatures):
     """
-    Classify GDP growth as High (>=5%) or Low (<5%).
+    Classify Bitcoin price movement as Bullish (≥median) or Bearish (<median).
     Returns classification and probability.
     """
     try:
         if clf_model is None or scaler is None or feature_columns is None:
             raise HTTPException(status_code=500, detail="Models or artifacts not loaded")
         
-        # Create DataFrame with provided indicators
-        data = {
-            'GDP': [indicators.GDP],
-            'Population': [indicators.Population],
-            'Inflation': [indicators.Inflation],
-            'Unemployment': [indicators.Unemployment],
-            'GDP_rolling3': [indicators.GDP_rolling3]
-        }
+        # Create DataFrame with provided indicators - use feature_columns to ensure correct order
+        data = {}
+        for col in feature_columns:
+            if hasattr(indicators, col):
+                data[col] = [getattr(indicators, col)]
+            else:
+                raise HTTPException(status_code=400, detail=f"Missing feature: {col}")
+        
         df = pd.DataFrame(data)
         
-        # Preprocess using the loaded scaler
-        df_processed, _, _ = preprocess_timeseries_data(df, scaler=scaler, drop_date=True)
+        # Add dummy target columns that scaler was fitted with
+        df['future_price_change'] = 0.0
+        df['market_class'] = 1
         
-        # Ensure feature order matches training
-        X = df_processed[feature_columns].values
+        # Get scaler column order
+        scaler_columns = list(scaler.feature_names_in_)
+        
+        # Scale all columns
+        X_all = scaler.transform(df[scaler_columns].values)
+        
+        # Extract only the feature columns for model prediction
+        feature_indices = [scaler_columns.index(f) for f in feature_columns]
+        X = X_all[:, feature_indices]
         
         # Predict
         prediction = clf_model.predict(X)[0]
         probabilities = clf_model.predict_proba(X)[0]
         
-        class_label = "High Growth (≥5%)" if prediction == 1 else "Low Growth (<5%)"
+        class_label = "Bullish" if prediction == 1 else "Bearish"
         
         return {
             "classification": class_label,
             "class_value": int(prediction),
-            "probability_low_growth": float(probabilities[0]),
-            "probability_high_growth": float(probabilities[1]),
-            "input_indicators": {
-                "GDP": indicators.GDP,
-                "Population": indicators.Population,
-                "Inflation": indicators.Inflation,
-                "Unemployment": indicators.Unemployment,
-                "GDP_rolling3": indicators.GDP_rolling3
-            }
+            "probability_bearish": float(probabilities[0]),
+            "probability_bullish": float(probabilities[1]),
+            "features_used": feature_columns
         }
     
     except HTTPException:
@@ -312,29 +360,37 @@ def predict_classification(indicators: EconomicIndicators):
 
 
 @app.post("/predict/both")
-def predict_both(indicators: EconomicIndicators):
+def predict_both(indicators: BitcoinFeatures):
     """
-    Simultaneously return both regression and classification predictions.
+    Simultaneously return both regression and classification predictions for Bitcoin price.
     """
     try:
         if reg_model is None or clf_model is None or scaler is None or feature_columns is None:
             raise HTTPException(status_code=500, detail="Models or artifacts not loaded")
         
-        # Create DataFrame with provided indicators
-        data = {
-            'GDP': [indicators.GDP],
-            'Population': [indicators.Population],
-            'Inflation': [indicators.Inflation],
-            'Unemployment': [indicators.Unemployment],
-            'GDP_rolling3': [indicators.GDP_rolling3]
-        }
+        # Create DataFrame with provided indicators - use feature_columns to ensure correct order
+        data = {}
+        for col in feature_columns:
+            if hasattr(indicators, col):
+                data[col] = [getattr(indicators, col)]
+            else:
+                raise HTTPException(status_code=400, detail=f"Missing feature: {col}")
+        
         df = pd.DataFrame(data)
         
-        # Preprocess using the loaded scaler
-        df_processed, _, _ = preprocess_timeseries_data(df, scaler=scaler, drop_date=True)
+        # Add dummy target columns that scaler was fitted with
+        df['future_price_change'] = 0.0
+        df['market_class'] = 1
         
-        # Ensure feature order matches training
-        X = df_processed[feature_columns].values
+        # Get scaler column order
+        scaler_columns = list(scaler.feature_names_in_)
+        
+        # Scale all columns
+        X_all = scaler.transform(df[scaler_columns].values)
+        
+        # Extract only the feature columns for model prediction
+        feature_indices = [scaler_columns.index(f) for f in feature_columns]
+        X = X_all[:, feature_indices]
         
         # Predict regression
         regression_pred = float(reg_model.predict(X)[0])
@@ -343,26 +399,20 @@ def predict_both(indicators: EconomicIndicators):
         classification_pred = int(clf_model.predict(X)[0])
         class_probabilities = [float(p) for p in clf_model.predict_proba(X)[0]]
         
-        class_label = "High Growth (≥5%)" if classification_pred == 1 else "Low Growth (<5%)"
+        class_label = "Bullish" if classification_pred == 1 else "Bearish"
         
         return {
             "regression": {
                 "prediction": regression_pred,
-                "interpretation": f"Predicted GDP growth: {regression_pred*100:.2f}%"
+                "interpretation": f"Predicted normalized price change: {regression_pred:.4f}"
             },
             "classification": {
                 "prediction": class_label,
                 "class_value": classification_pred,
-                "probability_low_growth": class_probabilities[0],
-                "probability_high_growth": class_probabilities[1]
+                "probability_bearish": class_probabilities[0],
+                "probability_bullish": class_probabilities[1]
             },
-            "input_indicators": {
-                "GDP": indicators.GDP,
-                "Population": indicators.Population,
-                "Inflation": indicators.Inflation,
-                "Unemployment": indicators.Unemployment,
-                "GDP_rolling3": indicators.GDP_rolling3
-            }
+            "features_used": feature_columns
         }
     
     except HTTPException:
@@ -377,7 +427,7 @@ def predict_both(indicators: EconomicIndicators):
 async def predict_batch(file: UploadFile = File(...)):
     """
     Batch prediction from CSV file upload.
-    CSV must have columns: GDP, Population, Inflation, Unemployment, GDP_rolling3
+    CSV must have all 49 Bitcoin technical indicator columns.
     Optional: date column for reference
     Returns predictions for each row.
     """
@@ -397,34 +447,43 @@ async def predict_batch(file: UploadFile = File(...)):
         raise HTTPException(status_code=400, detail=f"Failed to read CSV: {str(e)}")
     
     # Validate columns
-    required_cols = ['GDP', 'Population', 'Inflation', 'Unemployment', 'GDP_rolling3']
-    missing_cols = [c for c in required_cols if c not in df.columns]
+    missing_cols = [c for c in feature_columns if c not in df.columns]
     if missing_cols:
         raise HTTPException(
             status_code=400,
-            detail=f"Missing required columns: {missing_cols}. Expected: {required_cols}"
+            detail=f"Missing required columns: {missing_cols}. Expected: {feature_columns}"
         )
     
     results = []
     
     for idx, row in df.iterrows():
         try:
-            # Extract indicators
-            indicators_dict = {col: row[col] for col in required_cols}
+            # Extract indicators for required features
+            indicators_dict = {col: row[col] for col in feature_columns}
             
             # Create DataFrame
             df_row = pd.DataFrame([indicators_dict])
             
-            # Preprocess
-            df_processed, _, _ = preprocess_timeseries_data(df_row, scaler=scaler, drop_date=True)
-            X = df_processed[feature_columns].values
+            # Add dummy target columns that scaler was fitted with
+            df_row['future_price_change'] = 0.0
+            df_row['market_class'] = 1
+            
+            # Get scaler column order
+            scaler_columns = list(scaler.feature_names_in_)
+            
+            # Scale all columns
+            X_all = scaler.transform(df_row[scaler_columns].values)
+            
+            # Extract only the feature columns for model prediction
+            feature_indices = [scaler_columns.index(f) for f in feature_columns]
+            X = X_all[:, feature_indices]
             
             # Predict
             reg_pred = float(reg_model.predict(X)[0])
             clf_pred = int(clf_model.predict(X)[0])
             clf_probs = [float(p) for p in clf_model.predict_proba(X)[0]]
             
-            class_label = "High Growth (≥5%)" if clf_pred == 1 else "Low Growth (<5%)"
+            class_label = "Bullish" if clf_pred == 1 else "Bearish"
             
             results.append({
                 "row_index": idx,
@@ -432,8 +491,8 @@ async def predict_batch(file: UploadFile = File(...)):
                 "regression_prediction": reg_pred,
                 "classification_prediction": class_label,
                 "classification_value": clf_pred,
-                "confidence_low_growth": clf_probs[0],
-                "confidence_high_growth": clf_probs[1]
+                "confidence_bearish": clf_probs[0],
+                "confidence_bullish": clf_probs[1]
             })
         
         except Exception as e:

@@ -70,38 +70,14 @@ st.markdown("""
 
 @st.cache_resource
 def load_latest_model():
-    """Load the latest trained model and metadata"""
+    """Load the latest trained model and metadata (from Vertex AI or local files)"""
     try:
-        models_dir = Path("models")
-        manifest_path = models_dir / "manifest.json"
+        from src.load_models_vertex_ai import load_models_from_vertex_ai
         
-        if not manifest_path.exists():
+        clf_model, reg_model, scaler, feature_columns, metadata = load_models_from_vertex_ai()
+        
+        if clf_model is None:
             return None, None, None, None, None
-        
-        with open(manifest_path, 'r') as f:
-            manifest = json.load(f)
-        
-        # Handle both old and new manifest formats
-        if 'models' in manifest:
-            # Old format
-            latest = manifest['models'][0]
-            version = latest['version']
-        elif 'active_version' in manifest:
-            # New format
-            version = manifest['active_version']
-        else:
-            return None, None, None, None, None
-        
-        # Load models and metadata
-        clf_model = joblib.load(models_dir / f"{version}_clf_model.pkl")
-        reg_model = joblib.load(models_dir / f"{version}_reg_model.pkl")
-        scaler = joblib.load(models_dir / f"{version}_scaler.pkl")
-        
-        with open(models_dir / f"{version}_feature_columns.json", 'r') as f:
-            feature_columns = json.load(f)
-        
-        with open(models_dir / f"{version}_training_metadata.json", 'r') as f:
-            metadata = json.load(f)
         
         return clf_model, reg_model, scaler, feature_columns, metadata
     
@@ -114,13 +90,12 @@ def load_latest_model():
 def load_bitcoin_data():
     """Load Bitcoin historical data - returns both raw and processed data"""
     try:
-        # Try to load from API first
-        from src.fetch_alpha_vantage import fetch_crypto_with_indicators
-        from src.preprocess_bitcoin import preprocess_bitcoin_data
+        # Use CoinGecko API (same as training pipeline) for consistency
+        from src.fetch_bitcoin_data import fetch_bitcoin_data, add_technical_indicators, calculate_price_changes
         
-        df_raw = fetch_crypto_with_indicators(
-            symbol='BTC',
-            market='USD'
+        df_raw = fetch_bitcoin_data(
+            days=365,
+            vs_currency='usd'
         )
         
         if df_raw is not None and not df_raw.empty:
@@ -128,9 +103,60 @@ def load_bitcoin_data():
             if 'date' in df_raw.columns:
                 df_raw = df_raw.sort_values('date').reset_index(drop=True)
             
-            # Keep raw data for visualization
-            # Process data for predictions
-            df_processed, _ = preprocess_bitcoin_data(df_raw.copy(), scaler=None, drop_date=False)
+            # CoinGecko already provides lowercase 'price', 'volume', 'market_cap'
+            # No need to rename columns - they're already in the right format
+            
+            # Calculate price changes and add technical indicators (matching training pipeline)
+            df_processed = df_raw.copy()
+            df_processed = calculate_price_changes(df_processed)
+            df_processed = add_technical_indicators(df_processed)
+            
+            # Add additional technical indicators from preprocessing function
+            # This ensures we have all 49 features like the trained model expects
+            price_col = 'price'
+            
+            # SMA (Simple Moving Averages) - with different windows than price_ma*
+            df_processed['SMA_7'] = df_processed[price_col].rolling(window=7, min_periods=1).mean()
+            df_processed['SMA_14'] = df_processed[price_col].rolling(window=14, min_periods=1).mean()
+            df_processed['SMA_30'] = df_processed[price_col].rolling(window=30, min_periods=1).mean()
+            
+            # EMA (Exponential Moving Averages)
+            df_processed['EMA_7'] = df_processed[price_col].ewm(span=7, adjust=False).mean()
+            df_processed['EMA_14'] = df_processed[price_col].ewm(span=14, adjust=False).mean()
+            
+            # Momentum (different calculation than momentum_3d, 7d, 14d)
+            df_processed['momentum_7'] = df_processed[price_col].pct_change(periods=7)
+            df_processed['momentum_14'] = df_processed[price_col].pct_change(periods=14)
+            df_processed['momentum_30'] = df_processed[price_col].pct_change(periods=30)
+            
+            # Volatility (rolling std with different windows)
+            df_processed['volatility_7'] = df_processed[price_col].rolling(window=7, min_periods=1).std()
+            df_processed['volatility_14'] = df_processed[price_col].rolling(window=14, min_periods=1).std()
+            
+            # RSI (Relative Strength Index) - improved calculation
+            delta = df_processed[price_col].diff()
+            gain = (delta.where(delta > 0, 0)).rolling(window=14, min_periods=1).mean()
+            loss = (-delta.where(delta < 0, 0)).rolling(window=14, min_periods=1).mean()
+            rs = gain / (loss + 1e-10)
+            df_processed['RSI'] = 100 - (100 / (1 + rs))
+            df_processed['RSI'] = np.clip(df_processed['RSI'], 0, 100)
+            
+            # MACD
+            ema_12 = df_processed[price_col].ewm(span=12, adjust=False).mean()
+            ema_26 = df_processed[price_col].ewm(span=26, adjust=False).mean()
+            df_processed['MACD'] = ema_12 - ema_26
+            df_processed['MACD_signal'] = df_processed['MACD'].ewm(span=9, adjust=False).mean()
+            
+            # Bollinger Bands
+            df_processed['BB_middle'] = df_processed[price_col].rolling(window=20, min_periods=1).mean()
+            bb_std = df_processed[price_col].rolling(window=20, min_periods=1).std()
+            bb_std = bb_std.fillna(0)
+            df_processed['BB_upper'] = df_processed['BB_middle'] + (bb_std * 2)
+            df_processed['BB_lower'] = df_processed['BB_middle'] - (bb_std * 2)
+            df_processed['BB_width'] = df_processed['BB_upper'] - df_processed['BB_lower']
+            
+            # Volume SMA
+            df_processed['volume_SMA_7'] = df_processed['volume'].rolling(window=7, min_periods=1).mean()
             
             # Clean infinity and NaN values with consistent median calculation
             for col in df_processed.select_dtypes(include=[np.number]).columns:
@@ -234,18 +260,41 @@ def create_feature_importance_chart(features, values):
 def make_predictions(clf_model, reg_model, scaler, features, feature_columns, current_price):
     """Make predictions using the models"""
     try:
-        # Prepare feature vector
-        X = features[feature_columns].values.reshape(1, -1)
-        # Clean any infinity or NaN values
-        X = np.nan_to_num(X, nan=0.0, posinf=0.0, neginf=0.0)
-        X_scaled = scaler.transform(X)
+        import warnings
+        from sklearn.utils.validation import check_array
         
-        # Classification prediction (Up/Down)
-        direction_pred = clf_model.predict(X_scaled)[0]
-        direction_proba = clf_model.predict_proba(X_scaled)[0]
-        
-        # Regression prediction (Price change)
-        price_change_pred = reg_model.predict(X_scaled)[0]
+        # Suppress sklearn warning about feature names
+        with warnings.catch_warnings():
+            warnings.filterwarnings('ignore', message='X does not have valid feature names')
+            
+            # Prepare feature vector with dummy target columns (scaler was fitted with 51 columns: 49 features + 2 targets)
+            X_df = features[feature_columns].copy()
+            X_df['future_price_change'] = 0.0
+            X_df['market_class'] = 1
+            
+            # Get scaler column order and transform
+            scaler_columns = list(scaler.feature_names_in_)
+            X_all_scaled = scaler.transform(X_df[scaler_columns].values)
+            
+            # Extract only the feature columns for model prediction
+            feature_indices = [scaler_columns.index(f) for f in feature_columns]
+            X_scaled = X_all_scaled[:, feature_indices]
+            
+            # Clean any remaining infinity or NaN values
+            X_scaled = np.nan_to_num(X_scaled, nan=0.0, posinf=0.0, neginf=0.0)
+            
+            # Classification prediction (Up/Down)
+            direction_pred = clf_model.predict(X_scaled)[0]
+            direction_proba = clf_model.predict_proba(X_scaled)[0]
+            
+            # Regression prediction (Price change)
+            price_change_raw = reg_model.predict(X_scaled)[0]
+            
+            # Clamp price change to realistic range based on recent volatility
+            from src.normalize_predictions import clamp_price_prediction
+            # Use the features data (which is the processed Bitcoin data) to get recent changes
+            recent_changes = features['price'].pct_change().dropna().tail(100).values if 'price' in features.columns else None
+            price_change_pred = clamp_price_prediction(price_change_raw, recent_changes, percentile=95)
         
         # Calculate predicted price
         predicted_price = current_price * (1 + price_change_pred)
@@ -346,7 +395,7 @@ def main():
     # Model info
     col1, col2, col3, col4 = st.columns(4)
     with col1:
-        version = metadata.get('model_version', 'Unknown')
+        version = metadata.get('version', metadata.get('model_version', 'Unknown'))
         st.metric("Model Version", version[-16:] if version != 'Unknown' else version)
     with col2:
         created_at = metadata.get('created_at', 'Unknown')
@@ -420,11 +469,10 @@ def main():
     if price_chart:
         st.plotly_chart(price_chart, use_container_width=True)
     
-    # ==================== SHAP EXPLAINABILITY - AUTO DISPLAY ====================
+    # ==================== SHAP EXPLAINABILITY ====================
     if predictions:
         st.divider()
         st.markdown("## 🔍 SHAP Explanation - Why This Prediction?")
-        st.info("⏳ Calculating SHAP explanations... (This may take 10-30 seconds on first run)")
         
         try:
             features_dict = dict(zip(feature_columns, latest_features[feature_columns].values[0].tolist()))
@@ -432,10 +480,8 @@ def main():
             
             if response.status_code == 200:
                 explanation = response.json()
-                method = explanation.get('explanation_method', 'shap')
-                st.success(f"✅ Explanation generated using {method.upper()}!")
                 
-                # Feature importance
+                # Feature importance chart
                 feature_importance = explanation.get('feature_importance', {})
                 if feature_importance:
                     importance_df = pd.DataFrame({
@@ -445,10 +491,12 @@ def main():
                     
                     fig = px.bar(importance_df, x='Importance', y='Feature', 
                                  orientation='h',
-                                 title=f"Top 10 Most Important Features ({method.upper()})")
+                                 title="📊 Top 10 Most Important Features",
+                                 color='Importance',
+                                 color_continuous_scale='Viridis')
                     st.plotly_chart(fig, use_container_width=True)
                 
-                # SHAP values
+                # SHAP values chart
                 shap_vals = explanation.get('shap_values', [])
                 if shap_vals:
                     shap_df = pd.DataFrame({
@@ -458,26 +506,15 @@ def main():
                     
                     fig_shap = px.bar(shap_df, x='SHAP Value', y='Feature', 
                                       orientation='h',
-                                      color='SHAP Value', color_continuous_scale='RdBu',
-                                      title="SHAP Values for Top 10 Features (Red=Push UP, Blue=Push DOWN)")
+                                      color='SHAP Value', 
+                                      color_continuous_scale='RdBu',
+                                      title="🎯 SHAP Values (Red=Push UP, Blue=Push DOWN)")
                     st.plotly_chart(fig_shap, use_container_width=True)
             else:
-                st.error(f"❌ API Error: Status {response.status_code}")
-                st.warning(f"Response: {response.text[:200]}")
-                st.error("⚙️ Cannot connect to API. Make sure API is running:")
-                st.code("python -m uvicorn api_server:app --host 0.0.0.0 --port 8000", language="bash")
-        except requests.exceptions.Timeout:
-            st.error("❌ Request timed out (took more than 120 seconds)")
-            st.warning("⏱️ SHAP computation is very slow on first run. Restart API and refresh page.")
-        except requests.exceptions.ConnectionError:
-            st.error("❌ Could not connect to API server on localhost:8000")
-            st.warning("Make sure API is running on port 8000!")
-            st.code("python -m uvicorn api_server:app --host 0.0.0.0 --port 8000", language="bash")
+                st.error(f"❌ Cannot generate SHAP explanations. API Error {response.status_code}")
+                st.info("Ensure FastAPI is running: `python -m uvicorn api_server:app --host 0.0.0.0 --port 8000`")
         except Exception as e:
             st.error(f"❌ Error: {str(e)}")
-            st.warning(f"Error type: {type(e).__name__}")
-            with st.expander("📋 Full Error Details"):
-                st.write(str(e))
     
     # Technical indicators
     if show_technical and 'RSI' in df_raw.columns:

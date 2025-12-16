@@ -194,6 +194,10 @@ class VertexAIFeatureStore:
             # Create DataFrame from dict (this avoids index issues)
             df_import = pd.DataFrame(data_dict)
             
+            print(f"📊 DataFrame prepared - columns: {list(df_import.columns)}")
+            print(f"   feature_timestamp dtype: {df_import['feature_timestamp'].dtype}")
+            print(f"   entity_id sample: {df_import['entity_id'].iloc[0]}")
+            
             # Import from DataFrame to Feature Store
             self.entity_type.ingest_from_df(
                 feature_ids=feature_ids,
@@ -211,13 +215,34 @@ class VertexAIFeatureStore:
             traceback.print_exc()
             return False
     
+    def get_feature_list(self) -> List[str]:
+        """
+        Get list of all features in the Feature Store
+        
+        Returns:
+            List of feature names
+        """
+        try:
+            if self.entity_type is None:
+                print("✗ Not connected. Call connect() first.")
+                return []
+            
+            features = self.entity_type.list_features()
+            feature_names = [f.name for f in features]
+            
+            return feature_names
+            
+        except Exception as e:
+            print(f"✗ Failed to get feature list: {str(e)}")
+            return []
+    
     def read_features(
         self,
         entity_ids: List[str],
         feature_ids: Optional[List[str]] = None
     ) -> pd.DataFrame:
         """
-        Read features from Vertex AI Feature Store
+        Read features from Vertex AI Feature Store via BigQuery
         
         Args:
             entity_ids: List of entity IDs to read
@@ -236,24 +261,37 @@ class VertexAIFeatureStore:
                 all_features = self.entity_type.list_features()
                 feature_ids = [f.name for f in all_features]
             
-            # For Vertex AI Feature Store, we need to use batch read
-            # Since reading from Feature Store requires specific API calls and is complex,
-            # we'll use a simpler approach: query the BigQuery backing table directly
-            print(f"   Note: Vertex AI batch reading is complex. Using stored data instead...")
+            # Vertex AI Feature Store uses BigQuery as backing storage
+            # To read features for training, query the BigQuery table
+            from google.cloud import bigquery
             
-            # Alternative: Since we just ingested the data, return a message that
-            # for now, training should use the local preprocessing
-            # In production, you would set up proper feature serving
-            print(f"   ⚠️ Vertex AI online serving requires additional setup.")
-            print(f"   ⚠️ For training, consider using the ingested data via BigQuery export")
-            print(f"   ⚠️ or use local preprocessing with the same feature definitions.")
+            bq_client = bigquery.Client(project=self.project_id)
             
-            return pd.DataFrame()
+            # The backing table is in format: bq://<project>.<featurestore>.<entity_type>
+            table_id = f"{self.project_id}.{self.featurestore_id}_{self.entity_type.resource_name.split('/')[-1]}"
+            
+            # Build query to fetch latest features for each entity
+            entity_ids_str = "', '".join(entity_ids)
+            query = f"""
+            SELECT * FROM `{table_id}`
+            WHERE entity_id IN ('{entity_ids_str}')
+            ORDER BY entity_id, feature_timestamp DESC
+            """
+            
+            print(f"📊 Querying BigQuery for features: {table_id}")
+            query_job = bq_client.query(query)
+            df = query_job.to_dataframe()
+            
+            if df.empty:
+                print(f"⚠️ No features found in BigQuery table")
+            else:
+                print(f"✅ Retrieved {len(df)} feature records from BigQuery")
+            
+            return df
             
         except Exception as e:
-            print(f"✗ Failed to read features: {str(e)}")
-            import traceback
-            traceback.print_exc()
+            print(f"✗ Failed to read features from BigQuery: {str(e)}")
+            print(f"   Note: Feature Store ingestion setup required for serving")
             return pd.DataFrame()
 
 

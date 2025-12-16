@@ -5,7 +5,7 @@ A production-ready machine learning pipeline for Bitcoin price forecasting with 
 ## Overview
 
 - **Domain:** Cryptocurrency Price Prediction (Bitcoin)
-- **Data Sources:** CoinGecko API, Alpha Vantage (alternative)
+- **Data Sources:** CoinGecko API (free, no key required)
 - **Target Variables:** 
   - Classification: Predict price movement direction (Up/Down)
   - Regression: Predict future price values

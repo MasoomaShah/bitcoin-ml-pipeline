@@ -1,0 +1,18 @@
+{
+  "version": "v20251215T141637Z",
+  "created_at": "2025-12-15T14:16:37.579056Z",
+  "regression_model_type": "RandomForest",
+  "classification_model_type": "RandomForest",
+  "regression_metrics": {
+    "rmse": 0.8123188983552088,
+    "r2": 0.20900147267606395,
+    "test_samples": 30
+  },
+  "classification_metrics": {
+    "accuracy": 0.7666666666666667,
+    "f1_score": 0.7090909090909091,
+    "test_samples": 30
+  },
+  "feature_count": 49,
+  "model_type": "RandomForest"
+}

@@ -3,7 +3,7 @@ Populate Vertex AI Feature Store with Bitcoin data
 """
 
 from src.vertex_ai_feature_store import VertexAIFeatureStore
-from src.fetch_alpha_vantage import fetch_crypto_with_indicators
+from src.fetch_bitcoin_data import fetch_bitcoin_data
 from src.preprocess_bitcoin import preprocess_bitcoin_data
 
 def populate_vertex_ai(days: int = 1095):
@@ -22,8 +22,8 @@ def populate_vertex_ai(days: int = 1095):
     print()
     
     # 2. Fetch data
-    print(f"2. Fetching {days} days of Bitcoin data...")
-    raw_data = fetch_crypto_with_indicators(symbol='BTC', market='USD', days=days)
+    print(f"2. Fetching {days} days of Bitcoin data from CoinGecko...")
+    raw_data = fetch_bitcoin_data(days=days)
     print(f"   ✓ Fetched {len(raw_data)} data points")
     print()
     
