@@ -12,7 +12,6 @@ services:
       - ./models:/app/models:ro
       - ./data:/app/data:rw
     environment:
-      - ALPHA_VANTAGE_API_KEY=${ALPHA_VANTAGE_API_KEY:-WMK7ADA9G2OXN5DA}
       - PYTHONUNBUFFERED=1
     restart: unless-stopped
     healthcheck:
@@ -36,7 +35,6 @@ services:
       - ./models:/app/models:ro
       - ./data:/app/data:rw
     environment:
-      - ALPHA_VANTAGE_API_KEY=${ALPHA_VANTAGE_API_KEY:-WMK7ADA9G2OXN5DA}
       - API_URL=http://api:8000
       - PYTHONUNBUFFERED=1
     depends_on:

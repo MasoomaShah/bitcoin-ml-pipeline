@@ -37,6 +37,22 @@ try:
 except ImportError:
     XGBOOST_AVAILABLE = False
 
+# Deep Learning imports
+try:
+    from tensorflow.keras.models import Sequential
+    from tensorflow.keras.layers import LSTM, GRU, Dense, Dropout
+    from tensorflow.keras.callbacks import EarlyStopping
+    KERAS_AVAILABLE = True
+except ImportError:
+    KERAS_AVAILABLE = False
+
+# Prophet import
+try:
+    from prophet import Prophet
+    PROPHET_AVAILABLE = True
+except ImportError:
+    PROPHET_AVAILABLE = False
+
 # Add project root to path
 project_root = Path(__file__).parent.parent.parent.absolute()
 sys.path.insert(0, str(project_root))
@@ -341,6 +357,104 @@ def train_regression_model(
         results['XGBoost'] = {'rmse': xgb_rmse, 'r2': xgb_r2}
         print(f"     ✓ RMSE: {xgb_rmse:.4f}, R²: {xgb_r2:.4f}")
     
+    # Model 4: LSTM (if Keras available)
+    if KERAS_AVAILABLE:
+        print("  4. Training LSTM Regressor...")
+        try:
+            from tensorflow.keras.callbacks import EarlyStopping
+            
+            # Prepare sequences for LSTM (lookback=7 days)
+            lookback = 7
+            X_train_seq = np.array([X_train.iloc[i:i+lookback].values for i in range(len(X_train)-lookback)])
+            y_train_seq = y_train.iloc[lookback:].values
+            X_test_seq = np.array([X_test.iloc[i:i+lookback].values for i in range(len(X_test)-lookback)])
+            y_test_seq = y_test.iloc[lookback:].values
+            
+            lstm_model = Sequential([
+                LSTM(64, return_sequences=True, input_shape=(lookback, X_train.shape[1])),
+                Dropout(0.2),
+                LSTM(32),
+                Dropout(0.2),
+                Dense(16, activation='relu'),
+                Dense(1, activation='linear')
+            ])
+            lstm_model.compile(optimizer='adam', loss='mse', metrics=['mae'])
+            
+            early_stop = EarlyStopping(monitor='val_loss', patience=10, restore_best_weights=True)
+            lstm_model.fit(X_train_seq, y_train_seq, epochs=50, batch_size=16, 
+                          validation_split=0.2, callbacks=[early_stop], verbose=0)
+            
+            lstm_pred = lstm_model.predict(X_test_seq, verbose=0).flatten()
+            lstm_rmse = np.sqrt(mean_squared_error(y_test_seq, lstm_pred))
+            lstm_r2 = r2_score(y_test_seq, lstm_pred)
+            models_to_test['LSTM'] = lstm_model
+            results['LSTM'] = {'rmse': lstm_rmse, 'r2': lstm_r2}
+            print(f"     ✓ RMSE: {lstm_rmse:.4f}, R²: {lstm_r2:.4f}")
+        except Exception as e:
+            print(f"     ✗ LSTM training failed: {e}")
+    
+    # Model 5: GRU (if Keras available)
+    if KERAS_AVAILABLE:
+        print("  5. Training GRU Regressor...")
+        try:
+            from tensorflow.keras.callbacks import EarlyStopping
+            
+            # Reuse sequences from LSTM
+            lookback = 7
+            X_train_seq = np.array([X_train.iloc[i:i+lookback].values for i in range(len(X_train)-lookback)])
+            y_train_seq = y_train.iloc[lookback:].values
+            X_test_seq = np.array([X_test.iloc[i:i+lookback].values for i in range(len(X_test)-lookback)])
+            y_test_seq = y_test.iloc[lookback:].values
+            
+            gru_model = Sequential([
+                GRU(64, return_sequences=True, input_shape=(lookback, X_train.shape[1])),
+                Dropout(0.2),
+                GRU(32),
+                Dropout(0.2),
+                Dense(16, activation='relu'),
+                Dense(1, activation='linear')
+            ])
+            gru_model.compile(optimizer='adam', loss='mse', metrics=['mae'])
+            
+            early_stop = EarlyStopping(monitor='val_loss', patience=10, restore_best_weights=True)
+            gru_model.fit(X_train_seq, y_train_seq, epochs=50, batch_size=16, 
+                         validation_split=0.2, callbacks=[early_stop], verbose=0)
+            
+            gru_pred = gru_model.predict(X_test_seq, verbose=0).flatten()
+            gru_rmse = np.sqrt(mean_squared_error(y_test_seq, gru_pred))
+            gru_r2 = r2_score(y_test_seq, gru_pred)
+            models_to_test['GRU'] = gru_model
+            results['GRU'] = {'rmse': gru_rmse, 'r2': gru_r2}
+            print(f"     ✓ RMSE: {gru_rmse:.4f}, R²: {gru_r2:.4f}")
+        except Exception as e:
+            print(f"     ✗ GRU training failed: {e}")
+    
+    # Model 6: Prophet (if available)
+    if PROPHET_AVAILABLE:
+        print("  6. Training Prophet...")
+        try:
+            # Prepare data for Prophet
+            df_prophet = pd.DataFrame({
+                'ds': pd.date_range(end=datetime.now(), periods=len(y_train), freq='D'),
+                'y': y_train.values
+            })
+            
+            prophet_model = Prophet(yearly_seasonality=False, weekly_seasonality=True, daily_seasonality=False, interval_width=0.95)
+            prophet_model.fit(df_prophet)
+            
+            # Forecast for test period
+            future = prophet_model.make_future_dataframe(periods=len(y_test))
+            forecast = prophet_model.predict(future)
+            prophet_pred = forecast['yhat'].tail(len(y_test)).values
+            
+            prophet_rmse = np.sqrt(mean_squared_error(y_test, prophet_pred))
+            prophet_r2 = r2_score(y_test, prophet_pred)
+            models_to_test['Prophet'] = prophet_model
+            results['Prophet'] = {'rmse': prophet_rmse, 'r2': prophet_r2}
+            print(f"     ✓ RMSE: {prophet_rmse:.4f}, R²: {prophet_r2:.4f}")
+        except Exception as e:
+            print(f"     ✗ Prophet training failed: {e}")
+    
     # Select best model (highest R², lower RMSE is secondary criteria)
     print("\n  📊 Model Comparison Results:")
     best_model_name = max(results.keys(), key=lambda x: results[x]['r2'])
@@ -431,6 +545,77 @@ def train_classification_model(
         models_to_test['XGBoost'] = xgb_clf
         results['XGBoost'] = {'accuracy': xgb_acc, 'f1': xgb_f1}
         print(f"     ✓ Accuracy: {xgb_acc:.4f}, F1: {xgb_f1:.4f}")
+    
+    # Model 4: LSTM Classification (if Keras available)
+    if KERAS_AVAILABLE:
+        print("  4. Training LSTM Classifier...")
+        try:
+            from tensorflow.keras.callbacks import EarlyStopping
+            
+            # Prepare sequences for LSTM (lookback=7 days)
+            lookback = 7
+            X_train_seq = np.array([X_train.iloc[i:i+lookback].values for i in range(len(X_train)-lookback)])
+            y_train_seq = y_train.iloc[lookback:].values
+            X_test_seq = np.array([X_test.iloc[i:i+lookback].values for i in range(len(X_test)-lookback)])
+            y_test_seq = y_test.iloc[lookback:].values
+            
+            lstm_clf = Sequential([
+                LSTM(64, return_sequences=True, input_shape=(lookback, X_train.shape[1])),
+                Dropout(0.2),
+                LSTM(32),
+                Dropout(0.2),
+                Dense(16, activation='relu'),
+                Dense(1, activation='sigmoid')
+            ])
+            lstm_clf.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+            
+            early_stop = EarlyStopping(monitor='val_loss', patience=10, restore_best_weights=True)
+            lstm_clf.fit(X_train_seq, y_train_seq, epochs=50, batch_size=16, 
+                        validation_split=0.2, callbacks=[early_stop], verbose=0)
+            
+            lstm_pred = (lstm_clf.predict(X_test_seq, verbose=0) > 0.5).astype(int).flatten()
+            lstm_acc = accuracy_score(y_test_seq, lstm_pred)
+            lstm_f1 = f1_score(y_test_seq, lstm_pred, average='weighted')
+            models_to_test['LSTM'] = lstm_clf
+            results['LSTM'] = {'accuracy': lstm_acc, 'f1': lstm_f1}
+            print(f"     ✓ Accuracy: {lstm_acc:.4f}, F1: {lstm_f1:.4f}")
+        except Exception as e:
+            print(f"     ✗ LSTM training failed: {e}")
+    
+    # Model 5: GRU Classification (if Keras available)
+    if KERAS_AVAILABLE:
+        print("  5. Training GRU Classifier...")
+        try:
+            from tensorflow.keras.callbacks import EarlyStopping
+            
+            lookback = 7
+            X_train_seq = np.array([X_train.iloc[i:i+lookback].values for i in range(len(X_train)-lookback)])
+            y_train_seq = y_train.iloc[lookback:].values
+            X_test_seq = np.array([X_test.iloc[i:i+lookback].values for i in range(len(X_test)-lookback)])
+            y_test_seq = y_test.iloc[lookback:].values
+            
+            gru_clf = Sequential([
+                GRU(64, return_sequences=True, input_shape=(lookback, X_train.shape[1])),
+                Dropout(0.2),
+                GRU(32),
+                Dropout(0.2),
+                Dense(16, activation='relu'),
+                Dense(1, activation='sigmoid')
+            ])
+            gru_clf.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+            
+            early_stop = EarlyStopping(monitor='val_loss', patience=10, restore_best_weights=True)
+            gru_clf.fit(X_train_seq, y_train_seq, epochs=50, batch_size=16, 
+                       validation_split=0.2, callbacks=[early_stop], verbose=0)
+            
+            gru_pred = (gru_clf.predict(X_test_seq, verbose=0) > 0.5).astype(int).flatten()
+            gru_acc = accuracy_score(y_test_seq, gru_pred)
+            gru_f1 = f1_score(y_test_seq, gru_pred, average='weighted')
+            models_to_test['GRU'] = gru_clf
+            results['GRU'] = {'accuracy': gru_acc, 'f1': gru_f1}
+            print(f"     ✓ Accuracy: {gru_acc:.4f}, F1: {gru_f1:.4f}")
+        except Exception as e:
+            print(f"     ✗ GRU training failed: {e}")
     
     # Select best model (highest accuracy)
     print("\n  📊 Model Comparison Results:")
@@ -619,6 +804,89 @@ def save_and_version_models(
     }
 
 
+@task(name="upload_models_to_cloud_storage", retries=2, retry_delay_seconds=5)
+def upload_models_to_cloud_storage(version_info: Dict) -> bool:
+    """
+    Upload trained models to Google Cloud Storage for Vertex AI integration.
+    
+    Models are uploaded to gs://bucket/models/ directory
+    so that FastAPI and Streamlit can load them directly from cloud.
+    
+    Args:
+        version_info: Dictionary with version, paths, and metadata
+        
+    Returns:
+        True if successful, False if Cloud Storage unavailable
+    """
+    try:
+        from google.cloud import storage
+        
+        project_id = os.getenv('GCP_PROJECT_ID', 'ml-project-480417')
+        bucket_name = os.getenv('GCP_BUCKET', f"{project_id}-ml-models")
+        
+        version = version_info['version']
+        clf_model_path = version_info['paths']['clf_model']
+        reg_model_path = version_info['paths']['reg_model']
+        scaler_path = version_info['paths']['scaler']
+        features_path = version_info['paths']['features']
+        metadata_path = version_info['paths']['metadata']
+        
+        print(f"\n{'='*60}")
+        print("STEP 7A: UPLOAD MODELS TO CLOUD STORAGE")
+        print(f"{'='*60}")
+        
+        storage_client = storage.Client(project=project_id)
+        bucket = storage_client.bucket(bucket_name)
+        
+        # List of files to upload
+        files_to_upload = [
+            (clf_model_path, f"models/{version}_clf_model.pkl"),
+            (reg_model_path, f"models/{version}_reg_model.pkl"),
+            (scaler_path, f"models/{version}_scaler.pkl"),
+            (features_path, f"models/{version}_feature_columns.json"),
+            (metadata_path, f"models/{version}_training_metadata.json"),
+        ]
+        
+        print(f"📤 Uploading models to gs://{bucket_name}/models/")
+        
+        uploaded_count = 0
+        for local_path, cloud_path in files_to_upload:
+            try:
+                if os.path.exists(local_path):
+                    blob = bucket.blob(cloud_path)
+                    blob.upload_from_filename(local_path)
+                    print(f"  ✓ {Path(cloud_path).name}")
+                    uploaded_count += 1
+                else:
+                    print(f"  ✗ File not found: {local_path}")
+            except Exception as e:
+                print(f"  ✗ Failed to upload {Path(cloud_path).name}: {e}")
+        
+        # Upload updated manifest
+        try:
+            local_manifest = Path(version_info['paths']['manifest'])
+            if local_manifest.exists():
+                blob = bucket.blob("models/manifest.json")
+                blob.upload_from_filename(str(local_manifest))
+                print(f"  ✓ manifest.json")
+        except Exception as e:
+            print(f"  ⚠️ Failed to upload manifest: {e}")
+        
+        print(f"\n✅ Uploaded {uploaded_count}/{len(files_to_upload)} model files to Cloud Storage")
+        print(f"   Cloud location: gs://{bucket_name}/models/{version}_*")
+        return True
+        
+    except ImportError:
+        print("⚠️  Google Cloud Storage SDK not installed")
+        print("   Install with: pip install google-cloud-storage")
+        return False
+    except Exception as e:
+        print(f"⚠️ Cloud Storage upload failed: {e}")
+        print("   Models saved locally but not uploaded to GCP")
+        print("   Set GCP_PROJECT_ID and GCP_BUCKET environment variables to enable")
+        return False
+
+
 @task(name="register_models_to_vertex_ai", retries=2, retry_delay_seconds=5)
 def register_models_to_vertex_ai(version_info: Dict) -> bool:
     """
@@ -639,7 +907,7 @@ def register_models_to_vertex_ai(version_info: Dict) -> bool:
         metadata = version_info['metadata']
         
         print(f"\n{'='*60}")
-        print("STEP 7: REGISTER MODELS TO VERTEX AI")
+        print("STEP 7B: REGISTER MODELS TO VERTEX AI")
         print(f"{'='*60}")
         
         registry = VertexAIModelRegistry()
@@ -721,13 +989,17 @@ def upload_features_to_feature_store(df_features: pd.DataFrame, feature_names: l
         
         # Upload to Feature Store
         print(f"📤 Uploading features to Vertex AI Feature Store...")
-        feature_store.ingest_features(
+        ingest_success = feature_store.ingest_features(
             features_df=feature_df,
             entity_id_column="timestamp"
         )
         
-        print(f"✅ Features uploaded to Vertex AI Feature Store")
-        print(f"   Features: {len(feature_names)}")
+        if ingest_success:
+            print(f"✅ Features uploaded to Vertex AI Feature Store")
+            print(f"   Features: {len(feature_names)}")
+        else:
+            print(f"⚠️  Feature ingestion failed. Check logs above for errors.")
+            return False
         print(f"   Records: {len(feature_df)}")
         return True
         
@@ -827,10 +1099,13 @@ def ml_training_pipeline(
             output_dir=output_dir
         )
         
-        # Step 7: Register models to Vertex AI (optional - continues if fails)
+        # Step 7A: Upload models to Cloud Storage (optional - continues if fails)
+        cloud_storage_success = upload_models_to_cloud_storage(version_info)
+        
+        # Step 7B: Register models to Vertex AI (optional - continues if fails)
         vertex_ai_success = register_models_to_vertex_ai(version_info)
         
-        # Step 7B: Upload features to Vertex AI Feature Store (optional - continues if fails)
+        # Step 7C: Upload features to Vertex AI Feature Store (optional - continues if fails)
         feature_upload_success = upload_features_to_feature_store(df_processed, feature_cols)
         
         # Calculate pipeline duration
@@ -838,6 +1113,7 @@ def ml_training_pipeline(
         duration = (pipeline_end - pipeline_start).total_seconds()
         
         # Success notification
+        cloud_status = "✅" if cloud_storage_success else "⚠️ (Optional)"
         vertex_status = "✅" if vertex_ai_success else "⚠️ (Optional)"
         feature_status = "✅" if feature_upload_success else "⚠️ (Optional)"
         
@@ -855,11 +1131,14 @@ def ml_training_pipeline(
 - Accuracy: {clf_metrics['accuracy']:.4f}
 - F1 Score: {clf_metrics['f1_score']:.4f}
 
-**Cloud Registration:**
+**Cloud Integration:**
+- {cloud_status} Models uploaded to Cloud Storage
 - {vertex_status} Vertex AI Model Registry
-- {feature_status} Feature Store Upload
+- {feature_status} Feature Store (Features uploaded)
 
-**Models saved to:** `{output_dir}/`
+**Models Location:**
+- Local: `{output_dir}/{version_info['version']}_*.pkl`
+- Cloud: `gs://YOUR_BUCKET/models/{version_info['version']}_*`
 """
         
         send_notification(success_message, status="success", notification_type=notification_type)
@@ -875,7 +1154,8 @@ def ml_training_pipeline(
             'duration_seconds': duration,
             'regression_metrics': reg_metrics,
             'classification_metrics': clf_metrics,
-            'paths': version_info['paths']
+            'paths': version_info['paths'],
+            'cloud_upload': cloud_storage_success
         }
     
     except Exception as e:
