@@ -533,6 +533,10 @@ def main():
             rsi = 100 - (100 / (1 + rs))
             df_processed['rsi_14'] = np.clip(rsi, 0, 100)
     
+    # Create volume change if missing
+    if 'volume_change' not in df_processed.columns:
+        df_processed['volume_change'] = df_processed['volume'].pct_change()
+    
     # Create market cap change if missing
     if 'market_cap_change' not in df_processed.columns:
         df_processed['market_cap_change'] = df_processed['market_cap'].pct_change()
