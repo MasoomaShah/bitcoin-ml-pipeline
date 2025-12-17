@@ -6,65 +6,54 @@ This section describes the systematic approach for developing and evaluating mac
 
 \subsection{Methodology Flow}
 
-\begin{figure}[h]
-\centering
+The ML pipeline follows a linear, reproducible process:
+
+\begin{center}
 \begin{tikzpicture}[
-    scale=0.9,
-    node distance=1.5cm,
-    auto,
+    node distance=3cm,
     every node/.style={
-        draw,
         rectangle,
-        rounded corners=2pt,
+        draw,
+        minimum width=3.5cm,
+        minimum height=0.8cm,
         text centered,
-        minimum width=2.2cm,
-        minimum height=0.6cm,
-        font=\small
-    }
+        font=\normalsize
+    },
+    arrow/.style={->, thick}
 ]
 
-% Main flow boxes
-\node (collect) {Data Collection};
-\node (preprocess) [below=of collect] {Preprocessing};
-\node (features) [below=of preprocess] {Feature Engineering};
-\node (split) [below=of features] {Train/Test Split (80/20)};
-\node (training) [below=of split] {Model Training};
-\node (evaluation) [below=of training] {Model Evaluation};
-\node (selection) [below=of evaluation] {Model Selection};
-\node (deploy) [below=of selection] {Cloud Deployment};
+\node (n1) {Data Collection};
+\node (n2) [below=of n1] {Preprocessing};
+\node (n3) [below=of n2] {Feature Engineering};
+\node (n4) [below=of n3] {Train/Test Split (80/20)};
+\node (n5) [below=of n4] {Model Training};
+\node (n6) [below=of n5] {Model Evaluation};
+\node (n7) [below=of n6] {Model Selection};
+\node (n8) [below=of n7] {Cloud Deployment};
 
-% Details on right side
-\node[right=of collect, minimum width=3cm] (collect_detail) {\footnotesize CoinGecko API + Hourly Updates};
-\node[right=of preprocess, minimum width=3cm] (prep_detail) {\footnotesize Validation, Imputation, Cleaning};
-\node[right=of features, minimum width=3cm] (feat_detail) {\footnotesize 24 Technical Indicators + Scaling};
-\node[right=of split, minimum width=3cm] (split_detail) {\footnotesize 334 train, 30 test};
-\node[right=of training, minimum width=3cm] (train_detail) {\footnotesize 6 Ensemble, 4 Deep Learning, 1 Prophet};
-\node[right=of evaluation, minimum width=3cm] (eval_detail) {\footnotesize Accuracy, F1, RMSE, R² Score};
-\node[right=of selection, minimum width=3cm] (select_detail) {\footnotesize Best by Classification/Regression Metric};
-\node[right=of deploy, minimum width=3cm] (deploy_detail) {\footnotesize GCS + Vertex AI Registry};
-
-% Arrows for main flow
-\draw[->,thick] (collect) -- (preprocess);
-\draw[->,thick] (preprocess) -- (features);
-\draw[->,thick] (features) -- (split);
-\draw[->,thick] (split) -- (training);
-\draw[->,thick] (training) -- (evaluation);
-\draw[->,thick] (evaluation) -- (selection);
-\draw[->,thick] (selection) -- (deploy);
-
-% Connecting arrows to details
-\draw[dotted,gray] (collect) -- (collect_detail);
-\draw[dotted,gray] (preprocess) -- (prep_detail);
-\draw[dotted,gray] (features) -- (feat_detail);
-\draw[dotted,gray] (split) -- (split_detail);
-\draw[dotted,gray] (training) -- (train_detail);
-\draw[dotted,gray] (evaluation) -- (eval_detail);
-\draw[dotted,gray] (selection) -- (select_detail);
-\draw[dotted,gray] (deploy) -- (deploy_detail);
+\draw[arrow] (n1) -- (n2);
+\draw[arrow] (n2) -- (n3);
+\draw[arrow] (n3) -- (n4);
+\draw[arrow] (n4) -- (n5);
+\draw[arrow] (n5) -- (n6);
+\draw[arrow] (n6) -- (n7);
+\draw[arrow] (n7) -- (n8);
 
 \end{tikzpicture}
-\caption{ML Pipeline Methodology Flow: Data → Training → Deployment}
-\end{figure}
+\end{center}
+
+\noindent
+\textbf{Key Details:}
+\begin{itemize}
+    \item \textbf{Data Collection:} CoinGecko API + hourly GitHub Actions updates
+    \item \textbf{Preprocessing:} Validation, imputation, outlier removal
+    \item \textbf{Feature Engineering:} 24 technical indicators, StandardScaler normalization
+    \item \textbf{Train/Test Split:} 334 samples (80\%) training, 30 samples (20\%) test
+    \item \textbf{Model Training:} 6 ensemble, 4 deep learning, 1 time-series (11 total)
+    \item \textbf{Evaluation:} Accuracy, F1, RMSE, R² metrics
+    \item \textbf{Selection:} Best by classification/regression metrics
+    \item \textbf{Deployment:} Google Cloud Storage + Vertex AI Registry
+\end{itemize}
 
 \subsection{Data Collection}
 
