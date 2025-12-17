@@ -7,11 +7,11 @@ on:
 
 jobs:
   fetch-hourly-features:
-    name: Fetch Bitcoin Features Every Hour
+    name: Fetch Bitcoin Features Hourly
     runs-on: ubuntu-latest
     
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
 
       - name: Set up Python
@@ -25,19 +25,19 @@ jobs:
           pip install --upgrade pip
           pip install pandas requests
 
-      - name: Fetch Bitcoin features
+      - name: Fetch features
         run: |
-          python3 << 'EOF'
+          mkdir -p data/features
+          python3 - << 'ENDSCRIPT'
 import os
-import sys
 import pandas as pd
+import requests
 from datetime import datetime
 
 print('=' * 60)
 print('HOURLY FEATURE COLLECTION')
 print('=' * 60)
 
-import requests
 try:
     url = 'https://api.coingecko.com/api/v3/coins/bitcoin/market_chart'
     params = {
@@ -55,8 +55,6 @@ try:
         df = pd.DataFrame(prices, columns=['timestamp', 'price'])
         df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
         
-        os.makedirs('data/features', exist_ok=True)
-        
         timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
         output_path = f'data/features/btc_features_{timestamp}.csv'
         df.to_csv(output_path, index=False)
@@ -64,7 +62,7 @@ try:
         print(f'[OK] Features saved: {output_path}')
         print(f'Records: {len(df)}')
     else:
-        print("[ERROR] No data")
+        print('[ERROR] No data received')
         exit(1)
 
 except Exception as e:
@@ -72,13 +70,13 @@ except Exception as e:
     exit(1)
 
 print('[OK] COMPLETE')
-EOF
+ENDSCRIPT
 
-      - name: Commit and push
+      - name: Commit changes
         if: always()
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
           git add -A || true
-          git commit -m "Hourly features update" || true
+          git commit -m "Hourly: Bitcoin features update" || true
           git push || true
