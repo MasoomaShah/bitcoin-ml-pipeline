@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  collect-features:
+  collect:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -15,188 +15,61 @@ jobs:
           python-version: '3.11'
       
       - name: Install dependencies
-        run: |
-          pip install --quiet pandas requests numpy scipy scikit-learn
+        run: pip install pandas requests
       
-      - name: Fetch and engineer features
+      - name: Fetch Bitcoin data
         run: |
           mkdir -p data/features
-          python3 << 'CODE'
-import os
+          python3 << 'EOF'
 import pandas as pd
-import numpy as np
 import requests
 from datetime import datetime
 import json
 
-def generate_engineered_features(df):
-    """Generate 49 technical indicators from raw OHLCV data."""
-    features = df.copy()
-    
-    price = features['price']
-    volume = features.get('volume', 1)
-    
-    # Moving Averages (8 features)
-    features['MA3'] = price.rolling(3).mean()
-    features['MA7'] = price.rolling(7).mean()
-    features['MA14'] = price.rolling(14).mean()
-    features['MA30'] = price.rolling(30).mean()
-    features['EMA7'] = price.ewm(span=7).mean()
-    features['EMA14'] = price.ewm(span=14).mean()
-    features['EMA30'] = price.ewm(span=30).mean()
-    features['SMA_ratio'] = price / features['MA30']
-    
-    # Momentum (6 features)
-    features['ROC3'] = price.pct_change(3)
-    features['ROC7'] = price.pct_change(7)
-    features['ROC14'] = price.pct_change(14)
-    features['Momentum3'] = price - price.shift(3)
-    features['Momentum7'] = price - price.shift(7)
-    features['Momentum14'] = price - price.shift(14)
-    
-    # Volatility (6 features)
-    features['Vol3'] = price.rolling(3).std()
-    features['Vol7'] = price.rolling(7).std()
-    features['Vol14'] = price.rolling(14).std()
-    features['VolRatio7_3'] = features['Vol7'] / (features['Vol3'] + 1e-8)
-    features['VolRatio14_7'] = features['Vol14'] / (features['Vol7'] + 1e-8)
-    features['Price_Std_Ratio'] = features['Vol7'] / (price + 1e-8)
-    
-    # RSI (Relative Strength Index) - 3 features
-    for period in [7, 14, 30]:
-        delta = price.diff()
-        gain = delta.clip(lower=0).rolling(window=period).mean()
-        loss = -delta.clip(upper=0).rolling(window=period).mean()
-        rs = gain / (loss + 1e-8)
-        features[f'RSI{period}'] = 100 - (100 / (1 + rs))
-    
-    # MACD (12-26-9) - 3 features
-    ema12 = price.ewm(span=12).mean()
-    ema26 = price.ewm(span=26).mean()
-    macd = ema12 - ema26
-    signal = macd.ewm(span=9).mean()
-    features['MACD'] = macd
-    features['MACD_Signal'] = signal
-    features['MACD_Diff'] = macd - signal
-    
-    # Bollinger Bands - 6 features
-    period = 20
-    bb_ma = price.rolling(period).mean()
-    bb_std = price.rolling(period).std()
-    features['BB_Upper'] = bb_ma + (bb_std * 2)
-    features['BB_Lower'] = bb_ma - (bb_std * 2)
-    features['BB_Mid'] = bb_ma
-    features['BB_Width'] = features['BB_Upper'] - features['BB_Lower']
-    features['BB_Pct'] = (price - features['BB_Lower']) / (features['BB_Width'] + 1e-8)
-    features['BB_Position'] = (price - bb_ma) / (bb_std + 1e-8)
-    
-    # Volume indicators - 6 features
-    features['Volume_MA7'] = volume.rolling(7).mean()
-    features['Volume_MA14'] = volume.rolling(14).mean()
-    features['Volume_Ratio'] = volume / (features['Volume_MA14'] + 1e-8)
-    features['PriceVol_Ratio'] = price / (volume + 1e-8)
-    features['Volume_Change'] = volume.pct_change()
-    features['Volume_Trend'] = volume.rolling(7).mean() / (volume.rolling(14).mean() + 1e-8)
-    
-    # Price derivatives - 4 features
-    features['Price_Change'] = price.pct_change()
-    features['Price_Change_3d'] = price.pct_change(3)
-    features['Log_Return'] = np.log(price / price.shift(1))
-    features['Cumulative_Return'] = (1 + features['Price_Change']).cumprod() - 1
-    
-    # High-Low range - 2 features
-    features['HL_Range'] = features.get('high', price * 1.01) - features.get('low', price * 0.99)
-    features['HL_Percent'] = features['HL_Range'] / (price + 1e-8)
-    
-    # Fill NaN values
-    features = features.fillna(method='bfill').fillna(method='ffill').fillna(0)
-    
-    return features
-
-print('🔄 Fetching Bitcoin data...')
 try:
+    print('Fetching Bitcoin data from CoinGecko...')
     url = 'https://api.coingecko.com/api/v3/coins/bitcoin/market_chart'
-    params = {
-        'vs_currency': 'usd',
-        'days': '365',
-        'interval': 'daily'
-    }
-    resp = requests.get(url, params=params, timeout=15)
+    params = {'vs_currency': 'usd', 'days': '365', 'interval': 'daily'}
+    
+    resp = requests.get(url, params=params, timeout=10)
     resp.raise_for_status()
     
-    data = resp.json()
-    prices = data.get('prices', [])
-    volumes = data.get('total_volumes', [])
-    market_caps = data.get('market_caps', [])
-    
+    prices = resp.json().get('prices', [])
     if not prices:
-        print('❌ No price data received')
+        print('No data received')
         exit(1)
     
-    # Create DataFrame
-    df = pd.DataFrame({
-        'timestamp': pd.to_datetime([p[0] for p in prices], unit='ms'),
-        'price': [p[1] for p in prices],
-        'volume': [v[1] if v else 0 for v in volumes],
-        'market_cap': [m[1] if m else 0 for m in market_caps]
-    })
+    df = pd.DataFrame(prices, columns=['timestamp', 'price'])
+    df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
     
-    print(f'✅ Fetched {len(df)} records')
+    # Basic feature engineering
+    df['MA7'] = df['price'].rolling(7).mean()
+    df['MA14'] = df['price'].rolling(14).mean()
+    df['MA30'] = df['price'].rolling(30).mean()
+    df['ROC'] = df['price'].pct_change(7)
+    df['Volatility'] = df['price'].rolling(14).std()
     
-    # Generate features
-    print('🔧 Engineering 49 technical features...')
-    features_df = generate_engineered_features(df)
+    print(f'Fetched {len(df)} records')
     
     # Save to CSV
     ts = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
     path = f'data/features/btc_features_{ts}.csv'
-    features_df.to_csv(path, index=False)
-    print(f'✅ Saved {len(features_df)} records with {len(features_df.columns)} features to {path}')
+    df.to_csv(path, index=False)
+    print(f'Saved {len(df)} records to {path}')
     
-    # Also save latest snapshot
-    features_df.tail(1).to_csv('data/features/btc_latest.csv', index=False)
+    df.tail(1).to_csv('data/features/btc_latest.csv', index=False)
+    print('✅ Complete')
     
-    # Save feature metadata
-    metadata = {
-        'timestamp': ts,
-        'record_count': len(features_df),
-        'feature_count': len(features_df.columns),
-        'features': list(features_df.columns),
-        'last_price': float(features_df['price'].iloc[-1]),
-        'last_timestamp': features_df['timestamp'].iloc[-1].isoformat()
-    }
-    with open('data/features/feature_metadata.json', 'w') as f:
-        json.dump(metadata, f, indent=2)
-    print('✅ Feature engineering complete')
-    
-except requests.exceptions.RequestException as e:
-    print(f'❌ Network error: {e}')
-    exit(1)
 except Exception as e:
-    print(f'❌ Error: {type(e).__name__}: {e}')
-    import traceback
-    traceback.print_exc()
+    print(f'Error: {e}')
     exit(1)
-CODE
+EOF
       
-      - name: Verify features
-        run: |
-          if [ -f "data/features/btc_latest.csv" ]; then
-            echo "✅ Feature file created"
-            python3 -c "import pandas as pd; df = pd.read_csv('data/features/btc_latest.csv'); print(f'Columns: {len(df.columns)}'); print(f'Shape: {df.shape}')"
-          else
-            echo "❌ Feature file not found"
-            exit 1
-          fi
-      
-      - name: Commit features
+      - name: Commit and push
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
           git add data/features/ || true
-          git commit -m "chore: hourly feature collection $(date -u +%Y-%m-%d_%H:%M:%S)" || true
+          git commit -m "hourly features" || true
           git push || true
-      
-      - name: Notify on failure
-        if: failure()
-        run: echo "❌ Hourly feature collection failed"
+
