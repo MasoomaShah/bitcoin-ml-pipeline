@@ -210,3 +210,43 @@ All hyperparameters were selected through:
 \subsection{Summary}
 
 The methodology follows industry-standard ML best practices: systematic data collection → preprocessing → feature engineering → temporal train/test split → model training on diverse architectures → rigorous evaluation → model selection → versioning → cloud deployment. This reproducible pipeline is automated via Prefect and GitHub Actions for continuous integration and retraining.
+
+\section{Future Work}
+
+\subsection{Near-Term (1-3 months)}
+\begin{enumerate}
+    \item Ensemble multiple models via voting/stacking (target: 75-80\% accuracy)
+    \item Multi-horizon forecasting (1-day, 3-day, 7-day predictions)
+    \item Hyperparameter optimization with Optuna
+    \item A/B testing framework for model experimentation
+\end{enumerate}
+
+\subsection{Medium-Term (3-12 months)}
+\begin{enumerate}
+    \item \textbf{Feature Enrichment:} On-chain metrics, sentiment analysis, macro indicators
+    \item \textbf{Architecture:} Transformers with attention, Graph Neural Networks, Bayesian uncertainty
+    \item \textbf{Production:} Real-time inference, online learning, explainability dashboard
+    \item \textbf{Business:} Portfolio optimization, alert system, strategy backtesting
+\end{enumerate}
+
+\subsection{Long-Term (1+ years)}
+\begin{enumerate}
+    \item Multi-asset forecasting (Ethereum, Solana, etc.)
+    \item Causal inference to identify true price drivers
+    \item DeFi integration with automated risk management
+    \item Commercialization as SaaS platform with API
+\end{enumerate}
+
+\section{Recommendations}
+
+\textbf{Development Priorities:}
+\begin{enumerate}
+    \item Implement ensemble methods (accuracy: 75\%+)
+    \item Add on-chain and sentiment features
+    \item Deploy A/B testing framework
+    \item Build uncertainty quantification
+    \item Auto-retrain on performance degradation
+\end{enumerate}
+
+\textbf{For Users:}
+70\% accuracy is informative but not guaranteed profit. Use predictions alongside risk management and fundamental analysis. Monitor model performance quarterly for drift.

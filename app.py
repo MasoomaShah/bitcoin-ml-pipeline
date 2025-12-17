@@ -386,10 +386,38 @@ def main():
         last_data_time = df_raw['date'].iloc[-1]
         st.info(f"📅 Latest data: {last_data_time} | Loaded at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     
+    # CRITICAL: Handle feature name mismatch between training and prediction pipelines
+    # The models were trained with specific feature names, but preprocessing may generate different names
+    # This ensures we have all the required features with correct names
+    
+    # First, try to add missing features by renaming if they exist under different names
+    feature_renames = {
+        # New naming -> Old naming (if preprocessing generates new names)
+        'SMA_7': 'price_ma7',
+        'SMA_14': 'price_ma14',
+        'SMA_30': 'price_ma30',
+        'EMA_7': 'price_ema7',
+        'EMA_14': 'price_ema14',
+        'momentum_7': 'momentum_3d',
+        'momentum_14': 'momentum_7d',
+        'momentum_30': 'momentum_14d',
+        'volatility_7': 'price_volatility_3d',
+        'volatility_14': 'price_volatility_7d',
+        'RSI': 'rsi_14',
+        'MACD': 'bb_std',
+        'volume_SMA_7': 'volume_ma3',
+    }
+    
+    # Apply renames for any new-name features that exist
+    for new_name, old_name in feature_renames.items():
+        if new_name in df_processed.columns and old_name not in df_processed.columns:
+            df_processed[old_name] = df_processed[new_name]
+    
     # Check for missing features
     missing_features = set(feature_columns) - set(df_processed.columns)
     if missing_features:
-        st.error(f"Missing features: {missing_features}")
+        st.error(f"❌ Missing features: {missing_features}")
+        st.info(f"Available features in data: {sorted(df_processed.columns.tolist())}")
         st.stop()
     
     # Model info

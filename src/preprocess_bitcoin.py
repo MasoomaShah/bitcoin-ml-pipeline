@@ -13,6 +13,7 @@ from sklearn.preprocessing import StandardScaler
 def preprocess_bitcoin_data(df, scaler=None, drop_date=True):
     """
     Preprocess Bitcoin time-series data with enhanced technical indicators.
+    IMPORTANT: Generate feature names that match what the trained model expects!
     
     Args:
         df (pd.DataFrame): Raw Bitcoin data with columns [date, price, market_cap, volume, ...]
@@ -28,61 +29,128 @@ def preprocess_bitcoin_data(df, scaler=None, drop_date=True):
     if 'date' in df.columns:
         df['date'] = pd.to_datetime(df['date'])
     
-    # Add technical indicators for better accuracy
-    if 'Close' in df.columns or 'price' in df.columns:
-        price_col = 'Close' if 'Close' in df.columns else 'price'
+    # Identify price column
+    price_col = None
+    if 'Close' in df.columns:
+        price_col = 'Close'
+    elif 'price' in df.columns:
+        price_col = 'price'
+    elif 'close' in df.columns:
+        price_col = 'close'
+    
+    if price_col:
+        # ========== PRICE-BASED FEATURES ==========
+        # Smoothing
+        df['price_smooth'] = df[price_col].rolling(window=3, min_periods=1).mean()
         
-        # Moving averages
+        # Moving averages (BOTH old and new naming to match training data)
+        df['price_ma3'] = df[price_col].rolling(window=3, min_periods=1).mean()
         df['SMA_7'] = df[price_col].rolling(window=7, min_periods=1).mean()
-        df['SMA_14'] = df[price_col].rolling(window=14, min_periods=1).mean()
-        df['SMA_30'] = df[price_col].rolling(window=30, min_periods=1).mean()
-        df['EMA_7'] = df[price_col].ewm(span=7, adjust=False).mean()
-        df['EMA_14'] = df[price_col].ewm(span=14, adjust=False).mean()
+        df['price_ma7'] = df['SMA_7']  # Alias for compatibility
         
-        # Price momentum
+        df['SMA_14'] = df[price_col].rolling(window=14, min_periods=1).mean()
+        df['price_ma14'] = df['SMA_14']  # Alias
+        
+        df['SMA_30'] = df[price_col].rolling(window=30, min_periods=1).mean()
+        df['price_ma30'] = df['SMA_30']  # Alias
+        
+        # EMA (Exponential Moving Averages)
+        df['EMA_7'] = df[price_col].ewm(span=7, adjust=False).mean()
+        df['price_ema7'] = df['EMA_7']  # Alias
+        
+        df['EMA_14'] = df[price_col].ewm(span=14, adjust=False).mean()
+        df['price_ema14'] = df['EMA_14']  # Alias
+        
+        # ========== MOMENTUM ==========
+        df['momentum_3d'] = df[price_col].pct_change(periods=3)
         df['momentum_7'] = df[price_col].pct_change(periods=7)
+        df['momentum_7d'] = df['momentum_7']
+        
         df['momentum_14'] = df[price_col].pct_change(periods=14)
+        df['momentum_14d'] = df['momentum_14']
+        
         df['momentum_30'] = df[price_col].pct_change(periods=30)
         
-        # Volatility
-        df['volatility_7'] = df[price_col].rolling(window=7, min_periods=1).std()
-        df['volatility_14'] = df[price_col].rolling(window=14, min_periods=1).std()
+        # Rate of Change (ROC)
+        df['roc_3d'] = df[price_col].pct_change(periods=3) * 100
+        df['roc_7d'] = df[price_col].pct_change(periods=7) * 100
         
-        # RSI (Relative Strength Index)
+        # ========== VOLATILITY ==========
+        df['price_volatility_3d'] = df[price_col].rolling(window=3, min_periods=1).std()
+        df['price_volatility_7d'] = df[price_col].rolling(window=7, min_periods=1).std()
+        df['volatility_7'] = df['price_volatility_7d']
+        
+        df['price_volatility_14d'] = df[price_col].rolling(window=14, min_periods=1).std()
+        df['volatility_14'] = df['price_volatility_14d']
+        
+        # ========== RSI (Relative Strength Index) ==========
         delta = df[price_col].diff()
         gain = (delta.where(delta > 0, 0)).rolling(window=14, min_periods=1).mean()
         loss = (-delta.where(delta < 0, 0)).rolling(window=14, min_periods=1).mean()
-        # Prevent division by zero and infinity values
         rs = gain / (loss + 1e-10)
-        rs = np.clip(rs, 0, 100)  # Clip RS to reasonable range
-        df['RSI'] = 100 - (100 / (1 + rs))
-        df['RSI'] = np.clip(df['RSI'], 0, 100)  # RSI should be 0-100
+        rs = np.clip(rs, 0, 100)
+        rsi = 100 - (100 / (1 + rs))
+        df['RSI'] = np.clip(rsi, 0, 100)
+        df['rsi_14'] = df['RSI']  # Alias
         
-        # MACD
+        # ========== MACD ==========
         ema_12 = df[price_col].ewm(span=12, adjust=False).mean()
         ema_26 = df[price_col].ewm(span=26, adjust=False).mean()
         df['MACD'] = ema_12 - ema_26
         df['MACD_signal'] = df['MACD'].ewm(span=9, adjust=False).mean()
         
-        # Bollinger Bands
+        # ========== BOLLINGER BANDS ==========
         df['BB_middle'] = df[price_col].rolling(window=20, min_periods=1).mean()
+        df['bb_middle'] = df['BB_middle']  # Alias
+        
         bb_std = df[price_col].rolling(window=20, min_periods=1).std()
-        bb_std = bb_std.fillna(0)  # Handle zero std deviation
+        bb_std = bb_std.fillna(0)
+        df['bb_std'] = bb_std
+        
         df['BB_upper'] = df['BB_middle'] + (bb_std * 2)
+        df['bb_upper'] = df['BB_upper']
+        
         df['BB_lower'] = df['BB_middle'] - (bb_std * 2)
+        df['bb_lower'] = df['BB_lower']
+        
         df['BB_width'] = df['BB_upper'] - df['BB_lower']
+        
+        # BB Position (0-1 between lower and upper bands)
+        band_range = df['BB_upper'] - df['BB_lower']
+        band_range = band_range.replace(0, 1e-10)  # Avoid division by zero
+        df['bb_position'] = (df[price_col] - df['BB_lower']) / band_range
+        df['bb_position'] = np.clip(df['bb_position'], 0, 1)
+        
+        # Price ratios to MAs
+        df['price_to_ma7'] = df[price_col] / (df['SMA_7'] + 1e-10)
+        df['price_to_ma30'] = df[price_col] / (df['SMA_30'] + 1e-10)
     
-    # Volume indicators
-    if 'Volume' in df.columns or 'volume' in df.columns:
-        vol_col = 'Volume' if 'Volume' in df.columns else 'volume'
+    # ========== VOLUME FEATURES ==========
+    vol_col = None
+    if 'Volume' in df.columns:
+        vol_col = 'Volume'
+    elif 'volume' in df.columns:
+        vol_col = 'volume'
+    
+    if vol_col:
+        df['volume_ma3'] = df[vol_col].rolling(window=3, min_periods=1).mean()
         df['volume_SMA_7'] = df[vol_col].rolling(window=7, min_periods=1).mean()
+        df['volume_ma7'] = df['volume_SMA_7']  # Alias
+        
         df['volume_change'] = df[vol_col].pct_change()
     
-    # Handle missing values (forward fill then backward fill)
+    # ========== MARKET CAP FEATURES ==========
+    if 'market_cap' in df.columns:
+        df['market_cap_change'] = df['market_cap'].pct_change()
+        
+        if vol_col:
+            df['volume_to_marketcap'] = df[vol_col] / (df['market_cap'] + 1e-10)
+    
+    # ========== HANDLE MISSING VALUES ==========
     numeric_cols = df.select_dtypes(include=[np.number]).columns
     df[numeric_cols] = df[numeric_cols].ffill().bfill()
     
-    # Clean infinity values that may have been created during calculations
+    # Clean infinity values
     df = df.replace([np.inf, -np.inf], np.nan)
     
     # Fill remaining NaNs with column medians
@@ -94,7 +162,7 @@ def preprocess_bitcoin_data(df, scaler=None, drop_date=True):
             else:
                 df[col] = df[col].fillna(median_val)
     
-    # Drop any remaining NaN rows (should be none now)
+    # Drop any remaining NaN rows
     df = df.dropna()
     
     # Identify feature columns (exclude date and target)
@@ -107,6 +175,10 @@ def preprocess_bitcoin_data(df, scaler=None, drop_date=True):
     else:
         df[feature_cols] = scaler.transform(df[feature_cols])
     
+    if drop_date and 'date' in df.columns:
+        df = df.drop(columns=['date'])
+    
+    return df, scaler
     if drop_date:
         df = df.drop('date', axis=1)
     
