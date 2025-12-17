@@ -117,6 +117,11 @@ def load_data():
     global bitcoin_data
     
     try:
+        # Try loading from raw data first (most recent daily run)
+        if Path("data/raw/bitcoin_timeseries.csv").exists():
+            bitcoin_data = pd.read_csv("data/raw/bitcoin_timeseries.csv")
+            return True
+        
         # Try loading from processed data
         data_files = list(Path("data/processed").glob("*.csv"))
         if data_files:
@@ -131,6 +136,7 @@ def load_data():
             bitcoin_data = pd.read_csv(latest_file)
             return True
         
+        print("Warning: No data files found in data/raw, data/processed, or data/features")
         return False
     
     except Exception as e:
