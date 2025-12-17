@@ -545,6 +545,57 @@ def main():
     if 'volume_to_marketcap' not in df_processed.columns:
         df_processed['volume_to_marketcap'] = df_processed['volume'] / (df_processed['market_cap'] + 1e-10)
     
+    # Create ALIASES for duplicate feature names (old vs new style)
+    # The model was trained with BOTH naming conventions
+    if 'rsi_14' in df_processed.columns and 'RSI' not in df_processed.columns:
+        df_processed['RSI'] = df_processed['rsi_14']
+    if 'RSI' in df_processed.columns and 'rsi_14' not in df_processed.columns:
+        df_processed['rsi_14'] = df_processed['RSI']
+    
+    # Momentum aliases
+    if 'momentum_3d' in df_processed.columns and 'momentum_7d' in df_processed.columns:
+        if 'momentum_7' not in df_processed.columns:
+            df_processed['momentum_7'] = df_processed['momentum_7d']
+        if 'momentum_14' not in df_processed.columns:
+            df_processed['momentum_14'] = df_processed['momentum_14d'] if 'momentum_14d' in df_processed.columns else 0.0
+        if 'momentum_30' not in df_processed.columns:
+            df_processed['momentum_30'] = 0.0
+    
+    # Volatility aliases
+    if 'price_volatility_7d' in df_processed.columns and 'volatility_7' not in df_processed.columns:
+        df_processed['volatility_7'] = df_processed['price_volatility_7d']
+    if 'price_volatility_14d' in df_processed.columns and 'volatility_14' not in df_processed.columns:
+        df_processed['volatility_14'] = df_processed['price_volatility_14d']
+    
+    # Bollinger Bands aliases
+    if 'bb_middle' in df_processed.columns:
+        if 'BB_middle' not in df_processed.columns:
+            df_processed['BB_middle'] = df_processed['bb_middle']
+    if 'BB_middle' in df_processed.columns:
+        if 'bb_middle' not in df_processed.columns:
+            df_processed['bb_middle'] = df_processed['BB_middle']
+    
+    if 'bb_upper' in df_processed.columns:
+        if 'BB_upper' not in df_processed.columns:
+            df_processed['BB_upper'] = df_processed['bb_upper']
+    if 'BB_upper' in df_processed.columns:
+        if 'bb_upper' not in df_processed.columns:
+            df_processed['bb_upper'] = df_processed['BB_upper']
+            
+    if 'bb_lower' in df_processed.columns:
+        if 'BB_lower' not in df_processed.columns:
+            df_processed['BB_lower'] = df_processed['bb_lower']
+    if 'BB_lower' in df_processed.columns:
+        if 'bb_lower' not in df_processed.columns:
+            df_processed['bb_lower'] = df_processed['BB_lower']
+    
+    # BB_width alias
+    if 'BB_width' not in df_processed.columns:
+        if 'bb_upper' in df_processed.columns and 'bb_lower' in df_processed.columns:
+            df_processed['BB_width'] = df_processed['bb_upper'] - df_processed['bb_lower']
+        else:
+            df_processed['BB_width'] = 0.0
+    
     # Check for missing features and add them if needed
     missing_features = set(feature_columns) - set(df_processed.columns)
     if missing_features:
