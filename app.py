@@ -545,21 +545,20 @@ def main():
     if 'volume_to_marketcap' not in df_processed.columns:
         df_processed['volume_to_marketcap'] = df_processed['volume'] / (df_processed['market_cap'] + 1e-10)
     
-    # Check for missing features
+    # Check for missing features and add them if needed
     missing_features = set(feature_columns) - set(df_processed.columns)
     if missing_features:
-        st.error(f"❌ Missing features: {missing_features}")
-        st.info(f"Available features: {sorted(df_processed.columns.tolist())}")
-        st.stop()
-    
-    # Model info
-    col1, col2, col3, col4 = st.columns(4)
-    with col1:
-        version = metadata.get('version', metadata.get('model_version', 'Unknown'))
-        st.metric("Model Version", version[-16:] if version != 'Unknown' else version)
-    with col2:
-        created_at = metadata.get('created_at', 'Unknown')
-        st.metric("Training Date", created_at[:10] if created_at != 'Unknown' else created_at)
+        st.warning(f"⚠️ Some features were missing, auto-generating them...")
+        # If critical features are missing, we have a problem
+        critical_features = {'price', 'volume', 'market_cap'}
+        if critical_features & missing_features:
+            st.error(f"❌ Critical features missing: {critical_features & missing_features}")
+            st.stop()
+        
+        # For missing optional features, fill with 0 (safer than NaN for ML models)
+        for feat in missing_features:
+            df_processed[feat] = 0.0
+            st.info(f"  Created missing feature: {feat} (filled with 0)")
     with col3:
         clf_metrics = metadata.get('classification_metrics', {})
         clf_acc = clf_metrics.get('accuracy', 0)
