@@ -1,4 +1,4 @@
-name: Hourly - Feature Collection
+name: Hourly Feature Collection
 
 on:
   schedule:
