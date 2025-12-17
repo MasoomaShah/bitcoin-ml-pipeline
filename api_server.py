@@ -113,35 +113,179 @@ def load_models():
 
 
 def load_data():
-    """Load Bitcoin data"""
+    """Load Bitcoin data and generate engineered features"""
     global bitcoin_data
     
     try:
+        df = None
+        
         # Try loading from raw data first (most recent daily run)
         if Path("data/raw/bitcoin_timeseries.csv").exists():
-            bitcoin_data = pd.read_csv("data/raw/bitcoin_timeseries.csv")
-            return True
+            print("Loading from data/raw/bitcoin_timeseries.csv...")
+            df = pd.read_csv("data/raw/bitcoin_timeseries.csv")
         
         # Try loading from processed data
-        data_files = list(Path("data/processed").glob("*.csv"))
-        if data_files:
-            latest_file = max(data_files, key=lambda x: x.stat().st_mtime)
-            bitcoin_data = pd.read_csv(latest_file)
-            return True
+        if df is None:
+            data_files = list(Path("data/processed").glob("*.csv"))
+            if data_files:
+                print("Loading from data/processed...")
+                latest_file = max(data_files, key=lambda x: x.stat().st_mtime)
+                df = pd.read_csv(latest_file)
         
         # Try loading from features directory
-        feature_files = list(Path("data/features").glob("*.csv"))
-        if feature_files:
-            latest_file = max(feature_files, key=lambda x: x.stat().st_mtime)
-            bitcoin_data = pd.read_csv(latest_file)
-            return True
+        if df is None:
+            feature_files = list(Path("data/features").glob("*.csv"))
+            if feature_files:
+                print("Loading from data/features...")
+                latest_file = max(feature_files, key=lambda x: x.stat().st_mtime)
+                df = pd.read_csv(latest_file)
         
-        print("Warning: No data files found in data/raw, data/processed, or data/features")
-        return False
+        if df is None:
+            print("ERROR: No data files found in data/raw, data/processed, or data/features")
+            return False
+        
+        print(f"Loaded {len(df)} rows, {len(df.columns)} columns")
+        
+        # Check if we need to generate engineered features
+        if len(df.columns) < 30:  # Raw data only has 4 columns, need at least 30+ for features
+            print("Generating engineered features from raw data...")
+            df = generate_engineered_features(df)
+        
+        if df is None or df.empty:
+            print("ERROR: Data is empty after loading")
+            return False
+        
+        bitcoin_data = df
+        print(f"Data loaded successfully: {len(df)} rows, {len(df.columns)} columns")
+        return True
     
     except Exception as e:
-        print(f"Error loading data: {e}")
+        print(f"ERROR loading data: {e}")
+        import traceback
+        traceback.print_exc()
         return False
+
+
+def generate_engineered_features(df):
+    """Generate 49 engineered features from raw Bitcoin data"""
+    try:
+        if 'price' not in df.columns:
+            print("ERROR: 'price' column not found")
+            return None
+        
+        price_col = 'price'
+        
+        # Basic moving averages
+        df['price_smooth'] = df[price_col].rolling(window=3, min_periods=1).mean()
+        df['price_ma3'] = df[price_col].rolling(window=3, min_periods=1).mean()
+        df['price_ma7'] = df[price_col].rolling(window=7, min_periods=1).mean()
+        df['price_ma14'] = df[price_col].rolling(window=14, min_periods=1).mean()
+        df['price_ma30'] = df[price_col].rolling(window=30, min_periods=1).mean()
+        
+        # Exponential moving averages
+        df['price_ema7'] = df[price_col].ewm(span=7, adjust=False).mean()
+        df['price_ema14'] = df[price_col].ewm(span=14, adjust=False).mean()
+        
+        # Momentum
+        df['momentum_3d'] = df[price_col].pct_change(periods=3) * 100
+        df['momentum_7d'] = df[price_col].pct_change(periods=7) * 100
+        df['momentum_14d'] = df[price_col].pct_change(periods=14) * 100
+        
+        # Rate of change
+        df['roc_3d'] = df[price_col].pct_change(periods=3) * 100
+        df['roc_7d'] = df[price_col].pct_change(periods=7) * 100
+        
+        # Volatility
+        df['price_volatility_3d'] = df[price_col].rolling(window=3, min_periods=1).std()
+        df['price_volatility_7d'] = df[price_col].rolling(window=7, min_periods=1).std()
+        df['price_volatility_14d'] = df[price_col].rolling(window=14, min_periods=1).std()
+        
+        # Volume indicators
+        if 'volume' in df.columns:
+            df['volume_ma3'] = df['volume'].rolling(window=3, min_periods=1).mean()
+            df['volume_ma7'] = df['volume'].rolling(window=7, min_periods=1).mean()
+            df['volume_change'] = df['volume'].pct_change(periods=1).fillna(0) * 100
+            df['volume_SMA_7'] = df['volume'].rolling(window=7, min_periods=1).mean()
+        else:
+            df['volume_ma3'] = 0.0
+            df['volume_ma7'] = 0.0
+            df['volume_change'] = 0.0
+            df['volume_SMA_7'] = 0.0
+        
+        # Price ratios
+        df['price_to_ma7'] = df[price_col] / (df['price_ma7'] + 1e-10)
+        df['price_to_ma30'] = df[price_col] / (df['price_ma30'] + 1e-10)
+        
+        # Bollinger Bands
+        df['bb_middle'] = df[price_col].rolling(window=20, min_periods=1).mean()
+        bb_std = df[price_col].rolling(window=20, min_periods=1).std()
+        bb_std = bb_std.fillna(0)
+        df['bb_std'] = bb_std
+        df['bb_upper'] = df['bb_middle'] + (bb_std * 2)
+        df['bb_lower'] = df['bb_middle'] - (bb_std * 2)
+        df['bb_position'] = (df[price_col] - df['bb_lower']) / ((df['bb_upper'] - df['bb_lower']) + 1e-10)
+        
+        # RSI
+        delta = df[price_col].diff()
+        gain = (delta.where(delta > 0, 0)).rolling(window=14, min_periods=1).mean()
+        loss = (-delta.where(delta < 0, 0)).rolling(window=14, min_periods=1).mean()
+        rs = gain / (loss + 1e-10)
+        df['rsi_14'] = 100 - (100 / (1 + rs))
+        df['rsi_14'] = np.clip(df['rsi_14'], 0, 100)
+        
+        # Market cap indicators
+        if 'market_cap' in df.columns:
+            df['market_cap_change'] = df['market_cap'].pct_change(periods=1).fillna(0) * df['market_cap']
+            df['volume_to_marketcap'] = df['volume'] / (df['market_cap'] + 1e-10) if 'volume' in df.columns else 0.0
+        else:
+            df['market_cap_change'] = 0.0
+            df['volume_to_marketcap'] = 0.0
+        
+        # Alternative indicators (SMA, EMA, momentum, volatility)
+        df['SMA_7'] = df[price_col].rolling(window=7, min_periods=1).mean()
+        df['SMA_14'] = df[price_col].rolling(window=14, min_periods=1).mean()
+        df['SMA_30'] = df[price_col].rolling(window=30, min_periods=1).mean()
+        
+        df['EMA_7'] = df[price_col].ewm(span=7, adjust=False).mean()
+        df['EMA_14'] = df[price_col].ewm(span=14, adjust=False).mean()
+        
+        df['momentum_7'] = df[price_col].pct_change(periods=7) * 100
+        df['momentum_14'] = df[price_col].pct_change(periods=14) * 100
+        df['momentum_30'] = df[price_col].pct_change(periods=30) * 100
+        
+        df['volatility_7'] = df[price_col].rolling(window=7, min_periods=1).std()
+        df['volatility_14'] = df[price_col].rolling(window=14, min_periods=1).std()
+        
+        df['RSI'] = df['rsi_14'].copy()
+        
+        # MACD
+        ema_12 = df[price_col].ewm(span=12, adjust=False).mean()
+        ema_26 = df[price_col].ewm(span=26, adjust=False).mean()
+        df['MACD'] = ema_12 - ema_26
+        df['MACD_signal'] = df['MACD'].ewm(span=9, adjust=False).mean()
+        
+        # Bollinger Bands alternatives
+        df['BB_middle'] = df['bb_middle'].copy()
+        df['BB_upper'] = df['bb_upper'].copy()
+        df['BB_lower'] = df['bb_lower'].copy()
+        df['BB_width'] = df['BB_upper'] - df['BB_lower']
+        
+        # Clean NaN and infinity values
+        for col in df.select_dtypes(include=[np.number]).columns:
+            col_median = df[col].replace([np.inf, -np.inf], np.nan).median()
+            if pd.isna(col_median):
+                col_median = 0.0
+            df[col] = df[col].replace([np.inf, -np.inf], col_median)
+            df[col] = df[col].fillna(col_median)
+        
+        print(f"Generated features: {len(df.columns)} total columns")
+        return df
+        
+    except Exception as e:
+        print(f"ERROR generating features: {e}")
+        import traceback
+        traceback.print_exc()
+        return None
 
 
 def scale_features(X, feature_names):
