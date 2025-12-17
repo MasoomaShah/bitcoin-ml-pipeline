@@ -819,9 +819,9 @@ def evaluate_classification_model(
     print(f"  Accuracy: {metrics['accuracy']:.4f}")
     print(f"  F1 Score: {metrics['f1_score']:.4f}")
     
-    # Print classification report
+    # Print classification report (use y_test_eval to match y_pred length)
     print("\nClassification Report:")
-    print(classification_report(y_test, y_pred, target_names=['Low Growth', 'High Growth']))
+    print(classification_report(y_test_eval, y_pred, target_names=['Low Growth', 'High Growth']))
     
     return metrics
 
