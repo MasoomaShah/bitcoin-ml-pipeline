@@ -609,15 +609,6 @@ def main():
         # For missing optional features, fill with 0 (safer than NaN for ML models)
         for feat in missing_features:
             df_processed[feat] = 0.0
-            st.info(f"  Created missing feature: {feat} (filled with 0)")
-    with col3:
-        clf_metrics = metadata.get('classification_metrics', {})
-        clf_acc = clf_metrics.get('accuracy', 0)
-        st.metric("Classification Accuracy", f"{clf_acc*100:.1f}%")
-    with col4:
-        reg_metrics = metadata.get('regression_metrics', {})
-        reg_rmse = reg_metrics.get('rmse', 0)
-        st.metric("Regression RMSE", f"{reg_rmse:.4f}")
     
     st.divider()
     
