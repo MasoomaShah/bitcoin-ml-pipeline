@@ -388,44 +388,158 @@ def main():
     
     # CRITICAL: Ensure all expected features exist with correct names
     # Models were trained with specific feature names from ml_pipeline.py
-    # Create aliases for any missing old-style feature names from new-style ones
-    
     # Create all old-style features if they don't exist
-    if 'SMA_7' in df_processed.columns and 'price_ma7' not in df_processed.columns:
-        df_processed['price_ma7'] = df_processed['SMA_7']
-    if 'SMA_14' in df_processed.columns and 'price_ma14' not in df_processed.columns:
-        df_processed['price_ma14'] = df_processed['SMA_14']
-    if 'SMA_30' in df_processed.columns and 'price_ma30' not in df_processed.columns:
-        df_processed['price_ma30'] = df_processed['SMA_30']
     
-    if 'EMA_7' in df_processed.columns and 'price_ema7' not in df_processed.columns:
-        df_processed['price_ema7'] = df_processed['EMA_7']
-    if 'EMA_14' in df_processed.columns and 'price_ema14' not in df_processed.columns:
-        df_processed['price_ema14'] = df_processed['EMA_14']
+    price_col = 'price'
     
-    if 'momentum_7' in df_processed.columns and 'momentum_7d' not in df_processed.columns:
-        df_processed['momentum_7d'] = df_processed['momentum_7']
-    if 'momentum_14' in df_processed.columns and 'momentum_14d' not in df_processed.columns:
-        df_processed['momentum_14d'] = df_processed['momentum_14']
-    if 'momentum_30' in df_processed.columns and 'momentum_14d' not in df_processed.columns:
-        # momentum_3d should be momentum_30 (for 3-day lookback equivalent)
-        if 'momentum_3d' not in df_processed.columns:
-            df_processed['momentum_3d'] = df_processed[['momentum_7', 'momentum_14', 'momentum_30']].mean(axis=1)
+    # Create old-style moving averages if missing
+    if 'price_smooth' not in df_processed.columns:
+        df_processed['price_smooth'] = df_processed[price_col].rolling(window=3, min_periods=1).mean()
+    if 'price_ma3' not in df_processed.columns:
+        df_processed['price_ma3'] = df_processed[price_col].rolling(window=3, min_periods=1).mean()
     
-    if 'volatility_7' in df_processed.columns and 'price_volatility_7d' not in df_processed.columns:
-        df_processed['price_volatility_7d'] = df_processed['volatility_7']
-    if 'volatility_14' in df_processed.columns and 'price_volatility_14d' not in df_processed.columns:
-        df_processed['price_volatility_14d'] = df_processed['volatility_14']
-    if 'volatility_7' in df_processed.columns and 'price_volatility_3d' not in df_processed.columns:
-        df_processed['price_volatility_3d'] = df_processed['volatility_7']
+    if 'price_ma7' not in df_processed.columns:
+        if 'SMA_7' in df_processed.columns:
+            df_processed['price_ma7'] = df_processed['SMA_7']
+        else:
+            df_processed['price_ma7'] = df_processed[price_col].rolling(window=7, min_periods=1).mean()
     
-    if 'RSI' in df_processed.columns and 'rsi_14' not in df_processed.columns:
-        df_processed['rsi_14'] = df_processed['RSI']
+    if 'price_ma14' not in df_processed.columns:
+        if 'SMA_14' in df_processed.columns:
+            df_processed['price_ma14'] = df_processed['SMA_14']
+        else:
+            df_processed['price_ma14'] = df_processed[price_col].rolling(window=14, min_periods=1).mean()
     
-    if 'volume_SMA_7' in df_processed.columns and 'volume_ma7' not in df_processed.columns:
-        df_processed['volume_ma7'] = df_processed['volume_SMA_7']
-    if 'volume_SMA_7' in df_processed.columns and 'volume_ma3' not in df_processed.columns:
-        df_processed['volume_ma3'] = df_processed['volume_SMA_7']
+    if 'price_ma30' not in df_processed.columns:
+        if 'SMA_30' in df_processed.columns:
+            df_processed['price_ma30'] = df_processed['SMA_30']
+        else:
+            df_processed['price_ma30'] = df_processed[price_col].rolling(window=30, min_periods=1).mean()
+    
+    if 'price_ema7' not in df_processed.columns:
+        if 'EMA_7' in df_processed.columns:
+            df_processed['price_ema7'] = df_processed['EMA_7']
+        else:
+            df_processed['price_ema7'] = df_processed[price_col].ewm(span=7, adjust=False).mean()
+    
+    if 'price_ema14' not in df_processed.columns:
+        if 'EMA_14' in df_processed.columns:
+            df_processed['price_ema14'] = df_processed['EMA_14']
+        else:
+            df_processed['price_ema14'] = df_processed[price_col].ewm(span=14, adjust=False).mean()
+    
+    # Create old-style momentum if missing
+    if 'momentum_3d' not in df_processed.columns:
+        df_processed['momentum_3d'] = df_processed[price_col].pct_change(periods=3)
+    
+    if 'momentum_7d' not in df_processed.columns:
+        if 'momentum_7' in df_processed.columns:
+            df_processed['momentum_7d'] = df_processed['momentum_7']
+        else:
+            df_processed['momentum_7d'] = df_processed[price_col].pct_change(periods=7)
+    
+    if 'momentum_14d' not in df_processed.columns:
+        if 'momentum_14' in df_processed.columns:
+            df_processed['momentum_14d'] = df_processed['momentum_14']
+        else:
+            df_processed['momentum_14d'] = df_processed[price_col].pct_change(periods=14)
+    
+    # Create ROC if missing
+    if 'roc_3d' not in df_processed.columns:
+        df_processed['roc_3d'] = df_processed[price_col].pct_change(periods=3) * 100
+    if 'roc_7d' not in df_processed.columns:
+        df_processed['roc_7d'] = df_processed[price_col].pct_change(periods=7) * 100
+    
+    # Create old-style volatility if missing
+    if 'price_volatility_3d' not in df_processed.columns:
+        df_processed['price_volatility_3d'] = df_processed[price_col].rolling(window=3, min_periods=1).std()
+    
+    if 'price_volatility_7d' not in df_processed.columns:
+        if 'volatility_7' in df_processed.columns:
+            df_processed['price_volatility_7d'] = df_processed['volatility_7']
+        else:
+            df_processed['price_volatility_7d'] = df_processed[price_col].rolling(window=7, min_periods=1).std()
+    
+    if 'price_volatility_14d' not in df_processed.columns:
+        if 'volatility_14' in df_processed.columns:
+            df_processed['price_volatility_14d'] = df_processed['volatility_14']
+        else:
+            df_processed['price_volatility_14d'] = df_processed[price_col].rolling(window=14, min_periods=1).std()
+    
+    # Create volume features if missing
+    if 'volume_ma3' not in df_processed.columns:
+        df_processed['volume_ma3'] = df_processed['volume'].rolling(window=3, min_periods=1).mean()
+    
+    if 'volume_ma7' not in df_processed.columns:
+        if 'volume_SMA_7' in df_processed.columns:
+            df_processed['volume_ma7'] = df_processed['volume_SMA_7']
+        else:
+            df_processed['volume_ma7'] = df_processed['volume'].rolling(window=7, min_periods=1).mean()
+    
+    # Create price ratios if missing
+    if 'price_to_ma7' not in df_processed.columns:
+        ma7 = df_processed[price_col].rolling(window=7, min_periods=1).mean()
+        df_processed['price_to_ma7'] = df_processed[price_col] / (ma7 + 1e-10)
+    
+    if 'price_to_ma30' not in df_processed.columns:
+        ma30 = df_processed[price_col].rolling(window=30, min_periods=1).mean()
+        df_processed['price_to_ma30'] = df_processed[price_col] / (ma30 + 1e-10)
+    
+    # Create Bollinger Bands if missing
+    if 'bb_middle' not in df_processed.columns:
+        if 'BB_middle' in df_processed.columns:
+            df_processed['bb_middle'] = df_processed['BB_middle']
+        else:
+            df_processed['bb_middle'] = df_processed[price_col].rolling(window=20, min_periods=1).mean()
+    
+    if 'bb_std' not in df_processed.columns:
+        df_processed['bb_std'] = df_processed[price_col].rolling(window=20, min_periods=1).std().fillna(0)
+    
+    if 'bb_upper' not in df_processed.columns:
+        if 'BB_upper' in df_processed.columns:
+            df_processed['bb_upper'] = df_processed['BB_upper']
+        else:
+            bb_middle = df_processed[price_col].rolling(window=20, min_periods=1).mean()
+            bb_std = df_processed[price_col].rolling(window=20, min_periods=1).std().fillna(0)
+            df_processed['bb_upper'] = bb_middle + (bb_std * 2)
+    
+    if 'bb_lower' not in df_processed.columns:
+        if 'BB_lower' in df_processed.columns:
+            df_processed['bb_lower'] = df_processed['BB_lower']
+        else:
+            bb_middle = df_processed[price_col].rolling(window=20, min_periods=1).mean()
+            bb_std = df_processed[price_col].rolling(window=20, min_periods=1).std().fillna(0)
+            df_processed['bb_lower'] = bb_middle - (bb_std * 2)
+    
+    if 'bb_position' not in df_processed.columns:
+        bb_middle = df_processed[price_col].rolling(window=20, min_periods=1).mean()
+        bb_std = df_processed[price_col].rolling(window=20, min_periods=1).std().fillna(0)
+        bb_upper = bb_middle + (bb_std * 2)
+        bb_lower = bb_middle - (bb_std * 2)
+        band_range = bb_upper - bb_lower
+        band_range = band_range.replace(0, 1e-10)
+        df_processed['bb_position'] = (df_processed[price_col] - bb_lower) / band_range
+        df_processed['bb_position'] = np.clip(df_processed['bb_position'], 0, 1)
+    
+    # Create RSI if missing
+    if 'rsi_14' not in df_processed.columns:
+        if 'RSI' in df_processed.columns:
+            df_processed['rsi_14'] = df_processed['RSI']
+        else:
+            delta = df_processed[price_col].diff()
+            gain = (delta.where(delta > 0, 0)).rolling(window=14, min_periods=1).mean()
+            loss = (-delta.where(delta < 0, 0)).rolling(window=14, min_periods=1).mean()
+            rs = gain / (loss + 1e-10)
+            rsi = 100 - (100 / (1 + rs))
+            df_processed['rsi_14'] = np.clip(rsi, 0, 100)
+    
+    # Create market cap change if missing
+    if 'market_cap_change' not in df_processed.columns:
+        df_processed['market_cap_change'] = df_processed['market_cap'].pct_change()
+    
+    # Create volume to marketcap ratio if missing
+    if 'volume_to_marketcap' not in df_processed.columns:
+        df_processed['volume_to_marketcap'] = df_processed['volume'] / (df_processed['market_cap'] + 1e-10)
     
     # Check for missing features
     missing_features = set(feature_columns) - set(df_processed.columns)
