@@ -86,17 +86,31 @@ def load_latest_model():
         return None, None, None, None, None
 
 
-@st.cache_data(ttl=3600)  # Cache for 1 hour to prevent constant reloads
+@st.cache_data(ttl=7200)  # Cache for 2 hours to reduce API calls
 def load_bitcoin_data():
     """Load Bitcoin historical data - returns both raw and processed data"""
     try:
         # Use CoinGecko API (same as training pipeline) for consistency
         from src.fetch_bitcoin_data import fetch_bitcoin_data, add_technical_indicators, calculate_price_changes
+        import time
         
-        df_raw = fetch_bitcoin_data(
-            days=365,
-            vs_currency='usd'
-        )
+        # Retry logic for rate limiting
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                df_raw = fetch_bitcoin_data(
+                    days=365,
+                    vs_currency='usd'
+                )
+                break
+            except Exception as e:
+                if "429" in str(e) or "Too Many Requests" in str(e):
+                    if attempt < max_retries - 1:
+                        wait_time = 5 * (2 ** attempt)  # Exponential backoff: 5s, 10s, 20s
+                        st.warning(f"⏳ API rate limited. Retrying in {wait_time}s... (attempt {attempt + 1}/{max_retries})")
+                        time.sleep(wait_time)
+                        continue
+                raise
         
         if df_raw is not None and not df_raw.empty:
             # Ensure consistent sorting by date
@@ -168,14 +182,23 @@ def load_bitcoin_data():
             return df_raw, df_processed
         
     except Exception as e:
-        st.warning(f"Could not fetch live data: {e}")
+        st.warning(f"⚠️ Could not fetch live data: {e}")
     
-    # Fallback to stored data
+    # Fallback 1: Try local processed data
     data_files = list(Path("data/processed").glob("*.csv"))
     if data_files:
         latest_file = max(data_files, key=lambda x: x.stat().st_mtime)
         df = pd.read_csv(latest_file)
-        return df, df  # Return same for both if from file
+        st.info("📂 Using cached processed data")
+        return df, df
+    
+    # Fallback 2: Try raw data
+    raw_files = list(Path("data/raw").glob("*.csv"))
+    if raw_files:
+        latest_file = max(raw_files, key=lambda x: x.stat().st_mtime)
+        df = pd.read_csv(latest_file)
+        st.info("📂 Using cached raw data")
+        return df, df
     
     return None, None
 
