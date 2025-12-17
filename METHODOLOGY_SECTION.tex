@@ -6,89 +6,65 @@ This section describes the systematic approach for developing and evaluating mac
 
 \subsection{Methodology Flow}
 
-\begin{tikzpicture}[node distance=2cm, auto, every node/.style={draw, rectangle, text centered, minimum width=2cm, minimum height=0.8cm}]
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}[
+    scale=0.9,
+    node distance=1.5cm,
+    auto,
+    every node/.style={
+        draw,
+        rectangle,
+        rounded corners=2pt,
+        text centered,
+        minimum width=2.2cm,
+        minimum height=0.6cm,
+        font=\small
+    }
+]
 
-% Layer 1: Data Collection
-\node (collect) at (0, 8) {Data Collection};
-\node (coingecko) at (-2, 6.5) {\small CoinGecko API};
-\node (historical) at (0, 6.5) {\small Historical Data};
-\node (hourly) at (2, 6.5) {\small Hourly Updates};
+% Main flow boxes
+\node (collect) {Data Collection};
+\node (preprocess) [below=of collect] {Preprocessing};
+\node (features) [below=of preprocess] {Feature Engineering};
+\node (split) [below=of features] {Train/Test Split (80/20)};
+\node (training) [below=of split] {Model Training};
+\node (evaluation) [below=of training] {Model Evaluation};
+\node (selection) [below=of evaluation] {Model Selection};
+\node (deploy) [below=of selection] {Cloud Deployment};
 
-% Layer 2: Preprocessing
-\node (preprocess) at (0, 5) {Preprocessing};
-\node (validate) at (-1.5, 3.5) {\small Validation};
-\node (impute) at (0, 3.5) {\small Imputation};
-\node (clean) at (1.5, 3.5) {\small Outlier Removal};
+% Details on right side
+\node[right=of collect, minimum width=3cm] (collect_detail) {\footnotesize CoinGecko API + Hourly Updates};
+\node[right=of preprocess, minimum width=3cm] (prep_detail) {\footnotesize Validation, Imputation, Cleaning};
+\node[right=of features, minimum width=3cm] (feat_detail) {\footnotesize 24 Technical Indicators + Scaling};
+\node[right=of split, minimum width=3cm] (split_detail) {\footnotesize 334 train, 30 test};
+\node[right=of training, minimum width=3cm] (train_detail) {\footnotesize 6 Ensemble, 4 Deep Learning, 1 Prophet};
+\node[right=of evaluation, minimum width=3cm] (eval_detail) {\footnotesize Accuracy, F1, RMSE, R² Score};
+\node[right=of selection, minimum width=3cm] (select_detail) {\footnotesize Best by Classification/Regression Metric};
+\node[right=of deploy, minimum width=3cm] (deploy_detail) {\footnotesize GCS + Vertex AI Registry};
 
-% Layer 3: Feature Engineering
-\node (features) at (0, 2) {Feature Engineering};
-\node (technical) at (-2, 0.5) {\small 24 Technical\\Indicators};
-\node (temporal) at (0, 0.5) {\small Temporal\\Features};
-\node (scaling) at (2, 0.5) {\small StandardScaler};
-
-% Layer 4: Train/Test Split
-\node (split) at (0, -1) {Temporal Train/Test Split};
-\node (train) at (-1.5, -2.5) {\small 335 training\\(80\%)};
-\node (test) at (1.5, -2.5) {\small 30 test\\(20\%)};
-
-% Layer 5: Model Training
-\node (training) at (0, -4) {Model Training};
-\node (ensemble) at (-2, -5.5) {\small RandomForest\\GradientBoosting\\XGBoost};
-\node (deeplearning) at (0, -5.5) {\small LSTM\\GRU};
-\node (timeseries) at (2, -5.5) {\small Prophet};
-
-% Layer 6: Evaluation
-\node (evaluation) at (0, -7) {Model Evaluation};
-\node (clf_metrics) at (-1.5, -8.5) {\small Accuracy\\F1-Score};
-\node (reg_metrics) at (1.5, -8.5) {\small RMSE\\R² Score};
-
-% Layer 7: Selection & Versioning
-\node (select) at (0, -9.5) {Model Selection};
-\node (best) at (-1.5, -11) {\small Best by Metric};
-\node (version) at (1.5, -11) {\small Version \& Store};
-
-% Layer 8: Deployment
-\node (deploy) at (0, -12.5) {Cloud Deployment};
-\node (gcs) at (-1.5, -14) {\small GCS Upload};
-\node (vertexai) at (1.5, -14) {\small Vertex AI Registry};
-
-% Arrows
-\draw[->,thick] (collect) -- (coingecko);
-\draw[->,thick] (collect) -- (historical);
-\draw[->,thick] (collect) -- (hourly);
+% Arrows for main flow
 \draw[->,thick] (collect) -- (preprocess);
-
-\draw[->,thick] (preprocess) -- (validate);
-\draw[->,thick] (preprocess) -- (impute);
-\draw[->,thick] (preprocess) -- (clean);
 \draw[->,thick] (preprocess) -- (features);
-
-\draw[->,thick] (features) -- (technical);
-\draw[->,thick] (features) -- (temporal);
-\draw[->,thick] (features) -- (scaling);
 \draw[->,thick] (features) -- (split);
-
-\draw[->,thick] (split) -- (train);
-\draw[->,thick] (split) -- (test);
 \draw[->,thick] (split) -- (training);
-
-\draw[->,thick] (training) -- (ensemble);
-\draw[->,thick] (training) -- (deeplearning);
-\draw[->,thick] (training) -- (timeseries);
 \draw[->,thick] (training) -- (evaluation);
+\draw[->,thick] (evaluation) -- (selection);
+\draw[->,thick] (selection) -- (deploy);
 
-\draw[->,thick] (evaluation) -- (clf_metrics);
-\draw[->,thick] (evaluation) -- (reg_metrics);
-\draw[->,thick] (evaluation) -- (select);
-
-\draw[->,thick] (select) -- (best);
-\draw[->,thick] (select) -- (version);
-\draw[->,thick] (select) -- (deploy);
-
-\draw[->,thick] (deploy) -- (gcs);
-\draw[->,thick] (deploy) -- (vertexai);
+% Connecting arrows to details
+\draw[dotted,gray] (collect) -- (collect_detail);
+\draw[dotted,gray] (preprocess) -- (prep_detail);
+\draw[dotted,gray] (features) -- (feat_detail);
+\draw[dotted,gray] (split) -- (split_detail);
+\draw[dotted,gray] (training) -- (train_detail);
+\draw[dotted,gray] (evaluation) -- (eval_detail);
+\draw[dotted,gray] (selection) -- (select_detail);
+\draw[dotted,gray] (deploy) -- (deploy_detail);
 
 \end{tikzpicture}
+\caption{ML Pipeline Methodology Flow: Data → Training → Deployment}
+\end{figure}
 
 \subsection{Data Collection}
 
