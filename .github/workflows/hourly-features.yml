@@ -35,119 +35,113 @@ jobs:
       - name: Fetch Bitcoin features
         env:
           ALPHA_VANTAGE_API_KEY: ${{ secrets.ALPHA_VANTAGE_API_KEY }}
-        run: |
-          python -c "
-          import os
-          import sys
-          import pandas as pd
-          from datetime import datetime
-          import json
-          
-          print('=' * 60)
-          print('HOURLY FEATURE COLLECTION')
-          print('=' * 60)
-          print(f'Timestamp: {datetime.utcnow().isoformat()}Z')
-          print()
-          
-          # Fetch Bitcoin data from CoinGecko (no API key required)
-          sys.path.insert(0, '.')
-          
-          try:
-              from src.fetch_bitcoin_data import fetch_bitcoin_data
-              from src.preprocess_bitcoin import preprocess_bitcoin_data
-              
-              print('1. Fetching Bitcoin data from CoinGecko...')
-              raw_data = fetch_bitcoin_data(days=365)
-              print(f'   ✓ Fetched {len(raw_data)} records')
-              
-              print('2. Computing technical indicators...')
-              features_df, scaler = preprocess_bitcoin_data(raw_data, drop_date=False)
-              print(f'   ✓ Generated {len(features_df.columns)} features')
-              
-              # Save features
-              os.makedirs('data/features', exist_ok=True)
-              timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
-              output_path = f'data/features/btc_features_{timestamp}.csv'
-              features_df.to_csv(output_path, index=False)
-              
-              print(f'3. Saved features: {output_path}')
-              print(f'   Records: {len(features_df)}')
-              print(f'   Features: {list(features_df.columns)[:10]}...')
-              
-              # Create summary
-              summary = {
-                  'timestamp': datetime.utcnow().isoformat() + 'Z',
-                  'records': len(features_df),
-                  'features': list(features_df.columns),
-                  'date_range': {
-                      'start': str(features_df['date'].min() if 'date' in features_df.columns else 'N/A'),
-                      'end': str(features_df['date'].max() if 'date' in features_df.columns else 'N/A')
-                  },
-                  'latest_price': float(features_df['close'].iloc[-1]) if 'close' in features_df.columns else None
-              }
-              
-              summary_path = f'data/features/summary_{timestamp}.json'
-              with open(summary_path, 'w') as f:
-                  json.dump(summary, f, indent=2)
-              
-              print(f'✓ Summary saved: {summary_path}')
-          
-          except ImportError as e:
-              print(f'⚠️ Import error: {e}')
-              print('Creating simplified feature set...')
-              
-              # Fallback to simple API call
-              import requests
-              api_key = os.getenv('ALPHA_VANTAGE_API_KEY', '')
-              url = f'https://www.alphavantage.co/query'
-              params = {
-                  'function': 'DIGITAL_CURRENCY_DAILY',
-                  'symbol': 'BTC',
-                  'market': 'USD',
-                  'apikey': api_key
-              }
-              
-              response = requests.get(url, params=params, timeout=30)
-              data = response.json()
-              
-              if 'Time Series (Digital Currency Daily)' in data:
-                  ts_data = data['Time Series (Digital Currency Daily)']
-                  
-                  records = []
-                  for date, values in list(ts_data.items())[:365]:
-                      records.append({
-                          'date': date,
-                          'open': float(values.get('1a. open (USD)', 0)),
-                          'high': float(values.get('2a. high (USD)', 0)),
-                          'low': float(values.get('3a. low (USD)', 0)),
-                          'close': float(values.get('4a. close (USD)', 0)),
-                          'volume': float(values.get('5. volume', 0))
-                      })
-                  
-                  df = pd.DataFrame(records)
-                  df = df.sort_values('date')
-                  
-                  # Add basic features
-                  df['sma_7'] = df['close'].rolling(7).mean()
-                  df['sma_14'] = df['close'].rolling(14).mean()
-                  df['returns'] = df['close'].pct_change()
-                  
-                  os.makedirs('data/features', exist_ok=True)
-                  timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
-                  output_path = f'data/features/btc_features_{timestamp}.csv'
-                  df.to_csv(output_path, index=False)
-                  
-                  print(f'✓ Features saved: {output_path}')
-                  print(f'  Records: {len(df)}')
-              else:
-                  print(f'✗ API Error: {data.get("Note", data.get("Error Message", "Unknown error"))}')
-                  exit(1)
-          
-          print()
-          print('=' * 60)
-          print('✓ HOURLY FEATURE COLLECTION COMPLETE')
-          print('=' * 60)
-          "
+        run: python3 << 'EOF'
+import os
+import sys
+import pandas as pd
+from datetime import datetime
+import json
+
+print('=' * 60)
+print('HOURLY FEATURE COLLECTION')
+print('=' * 60)
+print(f'Timestamp: {datetime.utcnow().isoformat()}Z')
+print()
+
+sys.path.insert(0, '.')
+
+try:
+    from src.fetch_bitcoin_data import fetch_bitcoin_data
+    from src.preprocess_bitcoin import preprocess_bitcoin_data
+    
+    print('1. Fetching Bitcoin data from CoinGecko...')
+    raw_data = fetch_bitcoin_data(days=365)
+    print(f'   ✓ Fetched {len(raw_data)} records')
+    
+    print('2. Computing technical indicators...')
+    features_df, scaler = preprocess_bitcoin_data(raw_data, drop_date=False)
+    print(f'   ✓ Generated {len(features_df.columns)} features')
+    
+    os.makedirs('data/features', exist_ok=True)
+    timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+    output_path = f'data/features/btc_features_{timestamp}.csv'
+    features_df.to_csv(output_path, index=False)
+    
+    print(f'3. Saved features: {output_path}')
+    print(f'   Records: {len(features_df)}')
+    print(f'   Features: {list(features_df.columns)[:10]}...')
+    
+    summary = {
+        'timestamp': datetime.utcnow().isoformat() + 'Z',
+        'records': len(features_df),
+        'features': list(features_df.columns),
+        'date_range': {
+            'start': str(features_df['date'].min() if 'date' in features_df.columns else 'N/A'),
+            'end': str(features_df['date'].max() if 'date' in features_df.columns else 'N/A')
+        },
+        'latest_price': float(features_df['close'].iloc[-1]) if 'close' in features_df.columns else None
+    }
+    
+    summary_path = f'data/features/summary_{timestamp}.json'
+    with open(summary_path, 'w') as f:
+        json.dump(summary, f, indent=2)
+    
+    print(f'✓ Summary saved: {summary_path}')
+
+except ImportError as e:
+    print(f'⚠️ Import error: {e}')
+    print('Creating simplified feature set...')
+    
+    import requests
+    api_key = os.getenv('ALPHA_VANTAGE_API_KEY', '')
+    url = 'https://www.alphavantage.co/query'
+    params = {
+        'function': 'DIGITAL_CURRENCY_DAILY',
+        'symbol': 'BTC',
+        'market': 'USD',
+        'apikey': api_key
+    }
+    
+    response = requests.get(url, params=params, timeout=30)
+    data = response.json()
+    
+    if 'Time Series (Digital Currency Daily)' in data:
+        ts_data = data['Time Series (Digital Currency Daily)']
+        
+        records = []
+        for date, values in list(ts_data.items())[:365]:
+            records.append({
+                'date': date,
+                'open': float(values.get('1a. open (USD)', 0)),
+                'high': float(values.get('2a. high (USD)', 0)),
+                'low': float(values.get('3a. low (USD)', 0)),
+                'close': float(values.get('4a. close (USD)', 0)),
+                'volume': float(values.get('5. volume', 0))
+            })
+        
+        df = pd.DataFrame(records)
+        df = df.sort_values('date')
+        
+        df['sma_7'] = df['close'].rolling(7).mean()
+        df['sma_14'] = df['close'].rolling(14).mean()
+        df['returns'] = df['close'].pct_change()
+        
+        os.makedirs('data/features', exist_ok=True)
+        timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+        output_path = f'data/features/btc_features_{timestamp}.csv'
+        df.to_csv(output_path, index=False)
+        
+        print(f'✓ Features saved: {output_path}')
+        print(f'  Records: {len(df)}')
+    else:
+        print(f"✗ API Error: {data.get('Note', data.get('Error Message', 'Unknown error'))}")
+        exit(1)
+
+print()
+print('=' * 60)
+print('✓ HOURLY FEATURE COLLECTION COMPLETE')
+print('=' * 60)
+EOF
 
       - name: Upload feature data
         uses: actions/upload-artifact@v4

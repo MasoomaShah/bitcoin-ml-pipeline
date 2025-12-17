@@ -1,55 +1,216 @@
-\chapter{Complete Methodology Flow Diagram}
+\chapter{Methodology}
 \label{ch:methodology}
 
-\section{End-to-End Pipeline Visualization}
+\section{Overview}
 
-This chapter presents a comprehensive flow diagram of the entire Bitcoin ML Pipeline, from raw data ingestion through serving predictions in production.
+This section describes the systematic approach for developing and evaluating machine learning models for Bitcoin price prediction. The methodology encompasses data collection, feature engineering, model selection, training, evaluation, and orchestration.
 
-\section{Complete Pipeline Diagram}
+\section{Methodology Flow}
 
-\begin{figure}[H]
-\centering
-\begin{tikzpicture}[scale=0.75, node distance=1.8cm]
-    % ===== LAYER 1: DATA SOURCES =====
-    \node[draw, rounded rectangle, fill=blue!20, minimum width=2.5cm, minimum height=0.6cm] (api1) at (-3, 20) {CoinGecko};
-    \node[draw, rounded rectangle, fill=blue!20, minimum width=2.5cm, minimum height=0.6cm] (api2) at (3, 20) {Alpha Vantage};
-    \node[draw, rectangle, fill=gray!20, minimum width=3cm, minimum height=0.6cm] (csv) at (0, 18.5) {Raw CSV Storage};
-    
-    % ===== LAYER 2: DATA PIPELINE =====
-    \node[draw, rectangle, fill=green!20, minimum width=3cm, minimum height=0.6cm] (fetch) at (0, 17) {Fetch \& Validate};
-    \node[draw, rectangle, fill=green!20, minimum width=3cm, minimum height=0.6cm] (clean) at (0, 15.5) {Data Cleaning};
-    \node[draw, rectangle, fill=green!20, minimum width=3cm, minimum height=0.6cm] (engineer) at (0, 14) {Feature Engineering};
-    \node[draw, rectangle, fill=green!20, minimum width=3cm, minimum height=0.6cm] (preprocess) at (0, 12.5) {Preprocessing};
-    
-    % ===== LAYER 3: FEATURE STORE =====
-    \node[draw, rounded rectangle, fill=yellow!20, minimum width=3cm, minimum height=0.8cm] (fstore) at (0, 10.5) {Feature Store\\(Hopsworks)};
-    
-    % ===== LAYER 4: TRAINING =====
-    \node[draw, rectangle, fill=orange!20, minimum width=1.8cm, minimum height=0.6cm] (clf) at (-3, 8.5) {Train Clf};
-    \node[draw, rectangle, fill=orange!20, minimum width=1.8cm, minimum height=0.6cm] (reg) at (0, 8.5) {Train Reg};
-    \node[draw, rectangle, fill=orange!20, minimum width=1.8cm, minimum height=0.6cm] (dl) at (3, 8.5) {Train DL};
-    
-    % ===== LAYER 5: EVALUATION =====
-    \node[draw, rectangle, fill=purple!20, minimum width=3cm, minimum height=0.6cm] (eval) at (0, 7) {Evaluate \& Compare};
-    
-    % ===== LAYER 6: VERSIONING =====
-    \node[draw, rounded rectangle, fill=purple!30, minimum width=3cm, minimum height=0.8cm] (registry) at (0, 5) {Model Registry\\v20251205...};
-    
-    % ===== LAYER 7: DEPLOYMENT =====
-    \node[draw, rectangle, fill=red!20, minimum width=1.8cm, minimum height=0.6cm] (api) at (-3, 3.5) {FastAPI};
-    \node[draw, rectangle, fill=red!20, minimum width=1.8cm, minimum height=0.6cm] (dash) at (0, 3.5) {Streamlit};
-    \node[draw, rectangle, fill=red!20, minimum width=1.8cm, minimum height=0.6cm] (batch) at (3, 3.5) {Batch};
-    
-    % ===== LAYER 8: CONTAINERIZATION =====
-    \node[draw, rounded rectangle, fill=gray!30, minimum width=5cm, minimum height=0.8cm] (docker) at (0, 1.5) {Docker Containers\\(api, dashboard, db)};
-    
-    % ===== LAYER 9: ORCHESTRATION =====
-    \node[draw, rounded rectangle, fill=gray!30, minimum width=5cm, minimum height=0.8cm] (orch) at (0, -0.5) {Orchestration\\(Prefect + GitHub Actions)};
-    
-    % ===== LAYER 10: CLOUD =====
-    \node[draw, rounded rectangle, fill=cyan!20, minimum width=5cm, minimum height=0.8cm] (gcp) at (0, -2.5) {Cloud Deployment\\(Cloud Run / GKE)};
-    
-    % Arrows
+\begin{tikzpicture}[node distance=2cm, auto, every node/.style={draw, rectangle, text centered, minimum width=2cm, minimum height=0.8cm}]
+
+% Layer 1: Data Collection
+\node (collect) at (0, 8) {Data Collection};
+\node (coingecko) at (-2, 6.5) {\small CoinGecko API};
+\node (historical) at (0, 6.5) {\small Historical Data};
+\node (hourly) at (2, 6.5) {\small Hourly Updates};
+
+% Layer 2: Preprocessing
+\node (preprocess) at (0, 5) {Preprocessing};
+\node (validate) at (-1.5, 3.5) {\small Validation};
+\node (impute) at (0, 3.5) {\small Imputation};
+\node (clean) at (1.5, 3.5) {\small Outlier Removal};
+
+% Layer 3: Feature Engineering
+\node (features) at (0, 2) {Feature Engineering};
+\node (technical) at (-2, 0.5) {\small 24 Technical\\Indicators};
+\node (temporal) at (0, 0.5) {\small Temporal\\Features};
+\node (scaling) at (2, 0.5) {\small StandardScaler};
+
+% Layer 4: Train/Test Split
+\node (split) at (0, -1) {Temporal Train/Test Split};
+\node (train) at (-1.5, -2.5) {\small 335 training\\(80\%)};
+\node (test) at (1.5, -2.5) {\small 30 test\\(20\%)};
+
+% Layer 5: Model Training
+\node (training) at (0, -4) {Model Training};
+\node (ensemble) at (-2, -5.5) {\small RandomForest\\GradientBoosting\\XGBoost};
+\node (deeplearning) at (0, -5.5) {\small LSTM\\GRU};
+\node (timeseries) at (2, -5.5) {\small Prophet};
+
+% Layer 6: Evaluation
+\node (evaluation) at (0, -7) {Model Evaluation};
+\node (clf_metrics) at (-1.5, -8.5) {\small Accuracy\\F1-Score};
+\node (reg_metrics) at (1.5, -8.5) {\small RMSE\\R² Score};
+
+% Layer 7: Selection & Versioning
+\node (select) at (0, -9.5) {Model Selection};
+\node (best) at (-1.5, -11) {\small Best by Metric};
+\node (version) at (1.5, -11) {\small Version \& Store};
+
+% Layer 8: Deployment
+\node (deploy) at (0, -12.5) {Cloud Deployment};
+\node (gcs) at (-1.5, -14) {\small GCS Upload};
+\node (vertexai) at (1.5, -14) {\small Vertex AI Registry};
+
+% Arrows
+\draw[->,thick] (collect) -- (coingecko);
+\draw[->,thick] (collect) -- (historical);
+\draw[->,thick] (collect) -- (hourly);
+\draw[->,thick] (collect) -- (preprocess);
+
+\draw[->,thick] (preprocess) -- (validate);
+\draw[->,thick] (preprocess) -- (impute);
+\draw[->,thick] (preprocess) -- (clean);
+\draw[->,thick] (preprocess) -- (features);
+
+\draw[->,thick] (features) -- (technical);
+\draw[->,thick] (features) -- (temporal);
+\draw[->,thick] (features) -- (scaling);
+\draw[->,thick] (features) -- (split);
+
+\draw[->,thick] (split) -- (train);
+\draw[->,thick] (split) -- (test);
+\draw[->,thick] (split) -- (training);
+
+\draw[->,thick] (training) -- (ensemble);
+\draw[->,thick] (training) -- (deeplearning);
+\draw[->,thick] (training) -- (timeseries);
+\draw[->,thick] (training) -- (evaluation);
+
+\draw[->,thick] (evaluation) -- (clf_metrics);
+\draw[->,thick] (evaluation) -- (reg_metrics);
+\draw[->,thick] (evaluation) -- (select);
+
+\draw[->,thick] (select) -- (best);
+\draw[->,thick] (select) -- (version);
+\draw[->,thick] (select) -- (deploy);
+
+\draw[->,thick] (deploy) -- (gcs);
+\draw[->,thick] (deploy) -- (vertexai);
+
+\end{tikzpicture}
+
+\section{Data Collection}
+
+\textbf{Source:} CoinGecko API (free, no authentication required)
+\begin{itemize}
+    \item Historical data: 365+ days of daily OHLCV (Open, High, Low, Close, Volume)
+    \item Hourly updates via GitHub Actions (automated pipeline)
+    \item Latest data always available for real-time predictions
+\end{itemize}
+
+\section{Data Preprocessing}
+
+\begin{itemize}
+    \item \textbf{Missing Values:} Forward-fill imputation (preserves temporal continuity)
+    \item \textbf{Outliers:} IQR-based detection and removal
+    \item \textbf{Validation:} Schema and range validation
+    \item \textbf{Temporal Ordering:} Ensure chronological ordering for time-series integrity
+\end{itemize}
+
+\section{Feature Engineering}
+
+\textbf{24 Technical Indicators:}
+\begin{itemize}
+    \item \textbf{Trend Indicators:} SMA(7, 14, 30), EMA(7, 14)
+    \item \textbf{Momentum Indicators:} RSI(14), MACD, Rate of Change
+    \item \textbf{Volatility Indicators:} Bollinger Bands, Standard Deviation
+    \item \textbf{Volume Indicators:} Volume SMA, Volume Change Ratio
+    \item \textbf{Price Ratios:} Price relative to moving averages
+\end{itemize}
+
+\textbf{Normalization:} StandardScaler (zero mean, unit variance)
+
+\section{Train/Test Split}
+
+\textbf{Strategy:} Temporal split (prevents future data leakage)
+\begin{itemize}
+    \item \textbf{Training Set:} 335 samples (80\%)
+    \item \textbf{Test Set:} 30 samples (20\%)
+    \item \textbf{No Shuffling:} Maintains temporal order
+    \item \textbf{No Overlap:} Training ends before test begins
+\end{itemize}
+
+\section{Models Tested (11 Total)}
+
+\subsection{Ensemble Models (3)}
+\begin{itemize}
+    \item \textbf{RandomForest:} n\_estimators=300, max\_depth=12
+    \item \textbf{GradientBoosting:} n\_estimators=300, learning\_rate=0.05
+    \item \textbf{XGBoost:} n\_estimators=500, learning\_rate=0.05
+\end{itemize}
+
+\subsection{Deep Learning Models (4)}
+\begin{itemize}
+    \item \textbf{LSTM Classifier \& Regressor:} 2 layers (64→32 units), Dropout(0.2)
+    \item \textbf{GRU Classifier \& Regressor:} 2 layers (64→32 units), Dropout(0.2)
+    \item \textbf{Sequence Length:} 7-day lookback window
+    \item \textbf{Training:} 50 epochs, EarlyStopping (patience=10)
+\end{itemize}
+
+\subsection{Time-Series Model (1)}
+\begin{itemize}
+    \item \textbf{Prophet:} Seasonal decomposition with trend and weekly seasonality
+\end{itemize}
+
+\subsection{Classification vs. Regression}
+\begin{itemize}
+    \item \textbf{Classification (5 models):} Predict price direction (↑ Up / ↓ Down)
+    \item \textbf{Regression (5 models):} Predict price change magnitude (\%)
+    \item \textbf{Time-Series (1 model):} Multi-step forecasting
+\end{itemize}
+
+\section{Model Evaluation Metrics}
+
+\textbf{Classification Metrics:}
+\begin{itemize}
+    \item \textbf{Accuracy:} Proportion of correct predictions
+    \item \textbf{F1-Score:} Harmonic mean of precision and recall
+    \item \textbf{Precision \& Recall:} True positive rate and positive predictive value
+\end{itemize}
+
+\textbf{Regression Metrics:}
+\begin{itemize}
+    \item \textbf{RMSE:} Root Mean Squared Error (penalizes large errors)
+    \item \textbf{R² Score:} Coefficient of determination (variance explained)
+    \item \textbf{MAE:} Mean Absolute Error (robust to outliers)
+\end{itemize}
+
+\section{Model Selection Strategy}
+
+\begin{enumerate}
+    \item Train all 11 models independently
+    \item Evaluate each on test set using respective metrics
+    \item For Classification: Select model with highest F1-Score
+    \item For Regression: Select model with highest R² Score
+    \item Version selected models with timestamp and metrics
+    \item Store in model registry for deployment
+\end{enumerate}
+
+\section{Orchestration \& Automation}
+
+\begin{itemize}
+    \item \textbf{Daily Pipeline:} Prefect orchestration (Flows, Tasks, Retries)
+    \item \textbf{Hourly Features:} GitHub Actions scheduled automation
+    \item \textbf{Model Versioning:} JSON manifest with metadata and metrics
+    \item \textbf{Cloud Deployment:} Google Cloud Storage + Vertex AI Model Registry
+    \item \textbf{Notifications:} Discord alerts on success/failure
+\end{itemize}
+
+\section{Hyperparameter Tuning}
+
+All hyperparameters were selected through:
+\begin{itemize}
+    \item Grid search over common ranges
+    \item Early experimentation phase (non-production)
+    \item Cross-validation on training data
+    \item Final parameters frozen for production pipeline
+\end{itemize}
+
+\section{Summary}
+
+The methodology follows industry-standard ML best practices: systematic data collection → preprocessing → feature engineering → temporal train/test split → model training on diverse architectures → rigorous evaluation → model selection → versioning → cloud deployment. This reproducible pipeline is automated via Prefect and GitHub Actions for continuous integration and retraining.
     \draw[->] (api1) -- (fetch);
     \draw[->] (api2) -- (fetch);
     \draw[->] (csv) -- (fetch);
