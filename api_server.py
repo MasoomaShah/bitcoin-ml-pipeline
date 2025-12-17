@@ -215,45 +215,71 @@ def health_check():
 
 
 @app.get("/predict", response_model=PredictionResponse)
-def predict(price: float = Query(..., description="Current Bitcoin price")):
+def predict():
     """
-    Simple prediction based on price only
+    Predict tomorrow's Bitcoin price based on today's data
     
-    This endpoint makes a quick prediction using just the current price.
-    For more accurate predictions, use /predict/json with all 49 features.
+    Automatically fetches today's latest Bitcoin data and technical indicators,
+    then predicts tomorrow's price direction and change percentage.
+    This is equivalent to the Streamlit app prediction.
     """
-    if clf_model is None or reg_model is None:
+    if clf_model is None or reg_model is None or scaler is None:
         raise HTTPException(status_code=503, detail="Models not loaded")
     
+    if bitcoin_data is None:
+        raise HTTPException(status_code=503, detail="Bitcoin data not loaded")
+    
     try:
-        # Create minimal feature vector (use price for all features as placeholder)
-        # This is a simplified version - normally you'd use real features
-        X = np.full((1, len(feature_columns)), price)
-        X_scaled = scale_features(X, feature_columns)
+        # Get latest data point (today's data with all 49 features)
+        latest_row = bitcoin_data.iloc[-1].copy()
         
-        # Get predictions
-        clf_pred = clf_model.predict(X_scaled)[0]
-        clf_proba = clf_model.predict_proba(X_scaled)[0]
-        reg_pred = reg_model.predict(X_scaled)[0]
+        # Ensure we have the price column
+        price_col = next((col for col in ['price', 'Price', 'close', 'Close'] if col in bitcoin_data.columns), None)
+        if price_col is None:
+            raise ValueError("No price column found in data")
         
-        # Use regression prediction to determine direction (more reliable)
-        # Classification can sometimes be off when using placeholder features
-        price_change_pct = float(reg_pred)
-        direction = "UP" if price_change_pct > 0 else "DOWN"
-        confidence = float(max(clf_proba)) * 100
-        predicted_price = price * (1 + price_change_pct / 100)
-        price_change_usd = predicted_price - price
+        current_price = float(latest_row[price_col])
         
-        return PredictionResponse(
-            direction=direction,
-            direction_confidence=confidence,
-            price_change_pct=price_change_pct,
-            current_price=price,
-            predicted_price=predicted_price,
-            price_change_usd=price_change_usd,
-            timestamp=datetime.now().isoformat(),
-            input_method="price_only"
-        )
+        # Prepare feature vector (same as Streamlit)
+        try:
+            X_df = latest_row[feature_columns].to_frame().T.copy()
+            X_df['future_price_change'] = 0.0
+            X_df['market_class'] = 1
+            
+            # Scale using the loaded scaler
+            scaler_columns = list(scaler.feature_names_in_)
+            X_all_scaled = scaler.transform(X_df[scaler_columns].values)
+            
+            # Extract only feature columns
+            feature_indices = [scaler_columns.index(f) for f in feature_columns]
+            X_scaled = X_all_scaled[:, feature_indices]
+            X_scaled = np.nan_to_num(X_scaled, nan=0.0, posinf=0.0, neginf=0.0)
+            
+            # Get predictions
+            clf_pred = clf_model.predict(X_scaled)[0]
+            clf_proba = clf_model.predict_proba(X_scaled)[0]
+            reg_pred = reg_model.predict(X_scaled)[0]
+            
+            # Calculate final values
+            price_change_pct = float(reg_pred)
+            direction = "UP" if price_change_pct > 0 else "DOWN"
+            confidence = float(max(clf_proba)) * 100
+            predicted_price = current_price * (1 + price_change_pct / 100)
+            price_change_usd = predicted_price - current_price
+            
+            return PredictionResponse(
+                direction=direction,
+                direction_confidence=confidence,
+                price_change_pct=price_change_pct,
+                current_price=current_price,
+                predicted_price=predicted_price,
+                price_change_usd=price_change_usd,
+                timestamp=datetime.now().isoformat(),
+                input_method="auto_features"
+            )
+        
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Feature processing error: {str(e)}")
     
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Prediction error: {str(e)}")
