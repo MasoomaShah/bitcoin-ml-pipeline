@@ -386,38 +386,52 @@ def main():
         last_data_time = df_raw['date'].iloc[-1]
         st.info(f"📅 Latest data: {last_data_time} | Loaded at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     
-    # CRITICAL: Handle feature name mismatch between training and prediction pipelines
-    # The models were trained with specific feature names, but preprocessing may generate different names
-    # This ensures we have all the required features with correct names
+    # CRITICAL: Ensure all expected features exist with correct names
+    # Models were trained with specific feature names from ml_pipeline.py
+    # Create aliases for any missing old-style feature names from new-style ones
     
-    # First, try to add missing features by renaming if they exist under different names
-    feature_renames = {
-        # New naming -> Old naming (if preprocessing generates new names)
-        'SMA_7': 'price_ma7',
-        'SMA_14': 'price_ma14',
-        'SMA_30': 'price_ma30',
-        'EMA_7': 'price_ema7',
-        'EMA_14': 'price_ema14',
-        'momentum_7': 'momentum_3d',
-        'momentum_14': 'momentum_7d',
-        'momentum_30': 'momentum_14d',
-        'volatility_7': 'price_volatility_3d',
-        'volatility_14': 'price_volatility_7d',
-        'RSI': 'rsi_14',
-        'MACD': 'bb_std',
-        'volume_SMA_7': 'volume_ma3',
-    }
+    # Create all old-style features if they don't exist
+    if 'SMA_7' in df_processed.columns and 'price_ma7' not in df_processed.columns:
+        df_processed['price_ma7'] = df_processed['SMA_7']
+    if 'SMA_14' in df_processed.columns and 'price_ma14' not in df_processed.columns:
+        df_processed['price_ma14'] = df_processed['SMA_14']
+    if 'SMA_30' in df_processed.columns and 'price_ma30' not in df_processed.columns:
+        df_processed['price_ma30'] = df_processed['SMA_30']
     
-    # Apply renames for any new-name features that exist
-    for new_name, old_name in feature_renames.items():
-        if new_name in df_processed.columns and old_name not in df_processed.columns:
-            df_processed[old_name] = df_processed[new_name]
+    if 'EMA_7' in df_processed.columns and 'price_ema7' not in df_processed.columns:
+        df_processed['price_ema7'] = df_processed['EMA_7']
+    if 'EMA_14' in df_processed.columns and 'price_ema14' not in df_processed.columns:
+        df_processed['price_ema14'] = df_processed['EMA_14']
+    
+    if 'momentum_7' in df_processed.columns and 'momentum_7d' not in df_processed.columns:
+        df_processed['momentum_7d'] = df_processed['momentum_7']
+    if 'momentum_14' in df_processed.columns and 'momentum_14d' not in df_processed.columns:
+        df_processed['momentum_14d'] = df_processed['momentum_14']
+    if 'momentum_30' in df_processed.columns and 'momentum_14d' not in df_processed.columns:
+        # momentum_3d should be momentum_30 (for 3-day lookback equivalent)
+        if 'momentum_3d' not in df_processed.columns:
+            df_processed['momentum_3d'] = df_processed[['momentum_7', 'momentum_14', 'momentum_30']].mean(axis=1)
+    
+    if 'volatility_7' in df_processed.columns and 'price_volatility_7d' not in df_processed.columns:
+        df_processed['price_volatility_7d'] = df_processed['volatility_7']
+    if 'volatility_14' in df_processed.columns and 'price_volatility_14d' not in df_processed.columns:
+        df_processed['price_volatility_14d'] = df_processed['volatility_14']
+    if 'volatility_7' in df_processed.columns and 'price_volatility_3d' not in df_processed.columns:
+        df_processed['price_volatility_3d'] = df_processed['volatility_7']
+    
+    if 'RSI' in df_processed.columns and 'rsi_14' not in df_processed.columns:
+        df_processed['rsi_14'] = df_processed['RSI']
+    
+    if 'volume_SMA_7' in df_processed.columns and 'volume_ma7' not in df_processed.columns:
+        df_processed['volume_ma7'] = df_processed['volume_SMA_7']
+    if 'volume_SMA_7' in df_processed.columns and 'volume_ma3' not in df_processed.columns:
+        df_processed['volume_ma3'] = df_processed['volume_SMA_7']
     
     # Check for missing features
     missing_features = set(feature_columns) - set(df_processed.columns)
     if missing_features:
         st.error(f"❌ Missing features: {missing_features}")
-        st.info(f"Available features in data: {sorted(df_processed.columns.tolist())}")
+        st.info(f"Available features: {sorted(df_processed.columns.tolist())}")
         st.stop()
     
     # Model info
