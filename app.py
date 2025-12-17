@@ -378,6 +378,9 @@ def main():
         st.code("python src/train_with_feature_store.py")
         return
     
+    # DEBUG: Check what columns we have
+    st.info(f"DEBUG: df_processed has {len(df_processed.columns)} columns, needs {len(feature_columns)} features")
+    
     st.success("✅ Models and data loaded successfully")
     
     # Show data timestamp
@@ -614,6 +617,16 @@ def main():
     
     # Get latest features for prediction
     latest_features = df_processed.tail(1).copy()
+    
+    # SAFETY: Ensure all features exist before prediction
+    missing_for_prediction = set(feature_columns) - set(latest_features.columns)
+    if missing_for_prediction:
+        st.error(f"❌ CRITICAL: Missing {len(missing_for_prediction)} features in df_processed!")
+        st.error(f"Missing: {sorted(missing_for_prediction)}")
+        st.error(f"Available: {sorted(latest_features.columns.tolist())}")
+        # Fill them with 0
+        for feat in missing_for_prediction:
+            latest_features[feat] = 0.0
     
     # Get current price from raw data
     price_col = 'Close' if 'Close' in df_raw.columns else 'close' if 'close' in df_raw.columns else 'price'
