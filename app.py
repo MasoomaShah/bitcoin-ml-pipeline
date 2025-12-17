@@ -683,53 +683,6 @@ def main():
     if price_chart:
         st.plotly_chart(price_chart, use_container_width=True)
     
-    # ==================== SHAP EXPLAINABILITY ====================
-    if predictions:
-        st.divider()
-        st.markdown("## 🔍 SHAP Explanation - Why This Prediction?")
-        
-        try:
-            features_dict = dict(zip(feature_columns, latest_features[feature_columns].values[0].tolist()))
-            response = requests.post("http://localhost:8000/explain", json={"features": features_dict}, timeout=120)
-            
-            if response.status_code == 200:
-                explanation = response.json()
-                
-                # Feature importance chart
-                feature_importance = explanation.get('feature_importance', {})
-                if feature_importance:
-                    importance_df = pd.DataFrame({
-                        'Feature': list(feature_importance.keys()),
-                        'Importance': list(feature_importance.values())
-                    }).sort_values('Importance', ascending=True).tail(10)
-                    
-                    fig = px.bar(importance_df, x='Importance', y='Feature', 
-                                 orientation='h',
-                                 title="📊 Top 10 Most Important Features",
-                                 color='Importance',
-                                 color_continuous_scale='Viridis')
-                    st.plotly_chart(fig, use_container_width=True)
-                
-                # SHAP values chart
-                shap_vals = explanation.get('shap_values', [])
-                if shap_vals:
-                    shap_df = pd.DataFrame({
-                        'Feature': feature_columns,
-                        'SHAP Value': shap_vals
-                    }).sort_values('SHAP Value', key=abs, ascending=True).tail(10)
-                    
-                    fig_shap = px.bar(shap_df, x='SHAP Value', y='Feature', 
-                                      orientation='h',
-                                      color='SHAP Value', 
-                                      color_continuous_scale='RdBu',
-                                      title="🎯 SHAP Values (Red=Push UP, Blue=Push DOWN)")
-                    st.plotly_chart(fig_shap, use_container_width=True)
-            else:
-                st.error(f"❌ Cannot generate SHAP explanations. API Error {response.status_code}")
-                st.info("Ensure FastAPI is running: `python -m uvicorn api_server:app --host 0.0.0.0 --port 8000`")
-        except Exception as e:
-            st.error(f"❌ Error: {str(e)}")
-    
     # Technical indicators
     if show_technical and 'RSI' in df_raw.columns:
         st.subheader("📊 Technical Indicators")
