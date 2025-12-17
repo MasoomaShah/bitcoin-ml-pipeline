@@ -26,7 +26,8 @@ jobs:
           pip install pandas requests
 
       - name: Fetch Bitcoin features
-        run: python3 << 'EOF'
+        run: |
+          python3 << 'EOF'
 import os
 import sys
 import pandas as pd
