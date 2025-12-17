@@ -19,418 +19,69 @@ Prefect 2.0 is used to orchestrate the entire ML pipeline, providing task schedu
 
 \subsection{Task Dependencies Graph}
 
-\begin{figure}[H]
-\centering
-\begin{tikzpicture}[scale=0.9, node distance=2.2cm]
-    \node[draw, fill=blue!30, rounded rectangle, minimum width=2cm] (1) at (3, 10) {Start};
-    
-    \node[draw, fill=green!30, minimum width=2cm, minimum height=0.7cm] (2) at (3, 8.5) {Fetch Data};
-    \node[draw, fill=green!30, minimum width=2cm, minimum height=0.7cm] (3) at (3, 7) {Validate Data};
-    
-    \node[draw, fill=yellow!30, minimum width=2cm, minimum height=0.7cm] (4) at (1, 5) {Engineer};
-    \node[draw, fill=yellow!30, minimum width=2cm, minimum height=0.7cm] (5) at (3, 5) {Preprocess};
-    \node[draw, fill=yellow!30, minimum width=2cm, minimum height=0.7cm] (6) at (5, 5) {Split Data};
-    
-    \node[draw, fill=orange!30, minimum width=2cm, minimum height=0.7cm] (7) at (1, 3) {Train Clf};
-    \node[draw, fill=orange!30, minimum width=2cm, minimum height=0.7cm] (8) at (3, 3) {Train Reg};
-    \node[draw, fill=orange!30, minimum width=2cm, minimum height=0.7cm] (9) at (5, 3) {Train DL};
-    
-    \node[draw, fill=purple!30, minimum width=2cm, minimum height=0.7cm] (10) at (2, 1) {Evaluate};
-    \node[draw, fill=purple!30, minimum width=2cm, minimum height=0.7cm] (11) at (4, 1) {Version};
-    
-    \node[draw, fill=red!30, rounded rectangle, minimum width=2cm] (12) at (3, -1) {End};
-    
-    \draw[->] (1) -- (2);
-    \draw[->] (2) -- (3);
-    \draw[->] (3) -- (4);
-    \draw[->] (3) -- (5);
-    \draw[->] (3) -- (6);
-    \draw[->] (4) -- (7);
-    \draw[->] (5) -- (8);
-    \draw[->] (6) -- (9);
-    \draw[->] (7) -- (10);
-    \draw[->] (8) -- (10);
-    \draw[->] (9) -- (10);
-    \draw[->] (10) -- (11);
-    \draw[->] (11) -- (12);
-\end{tikzpicture}
-\caption{Prefect Task Dependency Graph}
-\label{fig:prefect_dag}
-\end{figure}
+The Prefect pipeline follows an 8-task dependency graph. It starts with fetching Bitcoin data, which feeds into data validation. After validation, the pipeline splits into three parallel branches: feature engineering, data preprocessing, and data splitting. These branches converge at the training stage where classification, regression, and deep learning models train in parallel. After training, all models proceed to the evaluation task to compute metrics and compare with baselines. Finally, the evaluation results are passed to the versioning task which creates a timestamp-based version ID and saves the model artifacts to the registry. This structure minimizes execution time by running independent tasks concurrently while maintaining dependencies between sequential operations.
 
 \section{Main ML Pipeline Flow}
 
-\subsection{Flow Definition}
-
-\begin{lstlisting}[language=Python, caption={Prefect ML Pipeline Definition (Simplified)}]
-from prefect import flow, task
-from prefect.tasks.prefect_orm import get_run_context
-import pandas as pd
-from src.fetch_bitcoin_data import fetch_bitcoin_data
-from src.preprocess_bitcoin import preprocess_bitcoin_data
-from src.train_all_models import train_all_models
-
-@task(retries=3, retry_delay_seconds=30)
-def fetch_data_task(days: int = 365) -> pd.DataFrame:
-    """Fetch Bitcoin data from CoinGecko API"""
-    print(f"Fetching {days} days of Bitcoin data...")
-    df = fetch_bitcoin_data(days=days)
-    print(f"✓ Fetched {len(df)} records")
-    return df
-
-@task(retries=2)
-def validate_data_task(df: pd.DataFrame) -> bool:
-    """Validate data quality"""
-    assert len(df) > 0, "Empty dataframe"
-    assert df['price'].notna().sum() > 0, "No prices"
-    print(f"✓ Data validation passed ({len(df)} records)")
-    return True
-
-@task
-def engineer_features_task(df: pd.DataFrame) -> pd.DataFrame:
-    """Engineer 24 technical indicators"""
-    print("Engineering features...")
-    df_features = engineer_features(df)
-    print(f"✓ Engineered {df_features.shape[1]} features")
-    return df_features
-
-@task
-def preprocess_task(df: pd.DataFrame) -> tuple:
-    """Preprocess data"""
-    print("Preprocessing...")
-    df_processed, scaler = preprocess_bitcoin_data(df)
-    print(f"✓ Preprocessing complete: {df_processed.shape}")
-    return df_processed, scaler
-
-@task
-def split_data_task(df: pd.DataFrame, test_size: float = 0.2) -> tuple:
-    """Temporal train/test split"""
-    split_idx = int(len(df) * (1 - test_size))
-    X_train = df.iloc[:split_idx]
-    X_test = df.iloc[split_idx:]
-    print(f"✓ Split: {len(X_train)} train, {len(X_test)} test")
-    return X_train, X_test
-
-@task(retries=2, retry_delay_seconds=60)
-def train_models_task(X_train, X_test, y_train_clf, y_train_reg) -> dict:
-    """Train all models (classification, regression, deep learning)"""
-    print("Training models...")
-    
-    results = train_all_models(
-        X_train, X_test,
-        y_train_clf, y_train_reg,
-        epochs=100, batch_size=32
-    )
-    
-    print(f"✓ Trained {len(results)} models")
-    return results
-
-@task
-def evaluate_models_task(results: dict) -> dict:
-    """Evaluate and rank models"""
-    print("Evaluating models...")
-    
-    best_model = max(results.items(), 
-                    key=lambda x: x[1]['metrics']['accuracy'])
-    
-    print(f"✓ Best model: {best_model[0]} ({best_model[1]['metrics']['accuracy']:.2%})")
-    return results
-
-@task
-def version_models_task(results: dict, models: dict) -> str:
-    """Version and save models to registry"""
-    print("Versioning models...")
-    
-    version_id = f"v{datetime.now().isoformat().replace(':', '')}"
-    
-    # Save to manifest
-    manifest = {
-        "active_version": version_id,
-        "versions": {
-            version_id: {
-                "metrics": results,
-                "created_at": datetime.now().isoformat()
-            }
-        }
-    }
-    
-    with open("models/manifest.json", "w") as f:
-        json.dump(manifest, f, indent=2)
-    
-    print(f"✓ Versioned models: {version_id}")
-    return version_id
-
-@flow(name="bitcoin-ml-pipeline")
-def ml_training_flow(data_path: str = "data/raw/bitcoin_timeseries.csv"):
-    """
-    Complete ML training pipeline with orchestration
-    
-    Steps:
-    1. Fetch Bitcoin data
-    2. Validate data quality
-    3. Engineer features
-    4. Preprocess data
-    5. Split into train/test
-    6. Train all models (in parallel)
-    7. Evaluate performance
-    8. Version best models
-    """
-    
-    print("\n" + "="*60)
-    print("🚀 BITCOIN ML TRAINING PIPELINE")
-    print("="*60 + "\n")
-    
-    # Data pipeline
-    df_raw = fetch_data_task(days=365)
-    is_valid = validate_data_task(df_raw)
-    
-    if not is_valid:
-        raise ValueError("Data validation failed")
-    
-    df_features = engineer_features_task(df_raw)
-    df_processed, scaler = preprocess_task(df_features)
-    X_train, X_test = split_data_task(df_processed, test_size=0.2)
-    
-    # Create targets
-    y_train_clf = (df_processed['price'].shift(-1) > df_processed['price']).astype(int)
-    y_train_reg = df_processed['price'].pct_change()
-    
-    # Training pipeline
-    results = train_models_task(X_train, X_test, y_train_clf, y_train_reg)
-    evaluated = evaluate_models_task(results)
-    version_id = version_models_task(evaluated, models={})
-    
-    print("\n" + "="*60)
-    print(f"✅ PIPELINE COMPLETE - Models versioned as {version_id}")
-    print("="*60 + "\n")
-    
-    return {"version": version_id, "metrics": evaluated}
-
-if __name__ == "__main__":
-    # Execute flow
-    state = ml_training_flow(data_path="data/raw/bitcoin_timeseries.csv")
-    print(state)
-\end{lstlisting}
+The Bitcoin ML pipeline is a Prefect flow orchestrating 8 tasks with retry logic and comprehensive logging. The flow accepts a data path parameter (defaulting to \texttt{data/raw/bitcoin\_timeseries.csv}) and executes the following orchestrated sequence: fetch 365 days of Bitcoin data from CoinGecko with 3 automatic retries, validate data quality and completeness, engineer 49 technical indicators from price and volume, preprocess the data by standardizing features, split into 80/20 train/test sets preserving temporal order, train classification and regression models in parallel, evaluate all models on the test set to compute metrics, and finally version the best models with a timestamp-based identifier in the model registry. The entire flow completes in 18-30 minutes and returns version metadata and performance metrics.
 
 \section{Task Specifications}
 
-\subsection{Task 1: Fetch Data}
+The pipeline consists of 8 tasks with the following specifications:
 
-\begin{table}[H]
-\centering
-\caption{Task: Fetch Data}
-\begin{tabularx}{\textwidth}{lX}
-\toprule
-\textbf{Parameter} & \textbf{Value} \\
-\midrule
-Name & fetch\_data\_task \\
-Retries & 3 (exponential backoff) \\
-Retry Delay & 30 seconds \\
-Timeout & 300 seconds (5 minutes) \\
-Input & days (int, default=365) \\
-Output & pd.DataFrame (OHLCV data) \\
-\bottomrule
-\end{tabularx}
-\end{table}
+\textbf{Task 1: Fetch Data} connects to the CoinGecko API to download 365 days of Bitcoin historical price data. It has 3 automatic retries with 30-second delays between retries and a 5-minute timeout. Returns a pandas DataFrame with columns: timestamp, price, volume, market cap.
 
-\subsection{Task 2: Validate Data}
+\textbf{Task 2: Validate Data} checks that the DataFrame is non-empty, contains no missing price values, validates that all prices are positive, and verifies chronological ordering. Returns a boolean confirming validation passed.
 
-\begin{enumerate}
-    \item Check non-empty dataframe
-    \item Verify no missing price values
-    \item Validate price ranges (> 0)
-    \item Check date ordering
-\end{enumerate}
+\textbf{Task 3: Engineer Features} computes 49 technical indicators from the price and volume data, including moving averages, RSI, MACD, Bollinger Bands, and volume-based metrics. Drops rows with NaN values and returns the feature matrix.
 
-\subsection{Task 3: Engineer Features}
+\textbf{Task 4: Preprocess} standardizes all features using StandardScaler to have zero mean and unit variance, handles any remaining missing values through interpolation, and returns both the preprocessed data and the scaler object for later transformation.
 
-\begin{enumerate}
-    \item Calculate 24 technical indicators
-    \item Compute temporal features
-    \item Drop invalid rows (NaN)
-    \item Return feature matrix
-\end{enumerate}
+\textbf{Task 5: Split Data} performs a temporal train/test split preserving the time ordering (no shuffling). Uses an 80/20 ratio by default, splitting at a specific date rather than randomly. Returns separate training and test datasets.
 
-\subsection{Task 4: Preprocess}
+\textbf{Task 6: Train Models} runs in parallel training classification (RandomForest, GradientBoosting, XGBoost, LSTM, GRU), regression (same 5 models), and deep learning models (LSTM, GRU, Prophet). Has 2 retries for out-of-memory errors and a 30-minute timeout. Returns a dictionary of model results with metrics.
 
-\begin{enumerate}
-    \item Standardize features (StandardScaler)
-    \item Handle missing values
-    \item Return (processed data, scaler)
-\end{enumerate}
+\textbf{Task 7: Evaluate} computes accuracy, precision, recall, F1-score for classification and MSE, MAE, R² for regression on the test set. Compares metrics against baseline thresholds and detects data drift. Returns evaluation results.
 
-\subsection{Task 5: Split Data}
-
-\begin{enumerate}
-    \item Temporal split (preserving order)
-    \item Default 80/20 ratio
-    \item Return (X\_train, X\_test)
-\end{enumerate}
-
-\subsection{Task 6: Train Models}
-
-\begin{itemize}
-    \item \textbf{Parallel:} Classification, Regression, Deep Learning
-    \item \textbf{Retries:} 2 (OOM recovery)
-    \item \textbf{Timeout:} 1800 seconds (30 minutes)
-    \item \textbf{Returns:} Dict of results
-\end{itemize}
-
-\subsection{Task 7: Evaluate}
-
-\begin{enumerate}
-    \item Compute metrics on test set
-    \item Compare with baseline
-    \item Detect data drift
-    \item Return evaluation results
-\end{enumerate}
-
-\subsection{Task 8: Version Models}
-
-\begin{enumerate}
-    \item Create version ID (timestamp)
-    \item Save to manifest.json
-    \item Upload model artifacts
-    \item Return version string
-\end{enumerate}
+\textbf{Task 8: Version Models} creates a timestamp-based version ID (e.g., v20251210T104812Z), saves model artifacts to disk, updates the manifest.json file with version metadata, and registers models in the model registry. Returns the version string.
 
 \section{Error Handling}
 
 \subsection{Retry Strategy}
 
-\begin{lstlisting}[language=Python, caption={Retry Configuration}]
-@task(
-    retries=3,                      # Retry up to 3 times
-    retry_delay_seconds=30,         # Wait 30s between retries
-    retry_jitter=True,              # Add randomness (0-10s)
-    timeout_seconds=300             # Fail after 5 minutes
-)
-def fetch_data_task(days: int = 365):
-    try:
-        return fetch_bitcoin_data(days=days)
-    except requests.exceptions.Timeout:
-        raise  # Will trigger retry
-    except requests.exceptions.ConnectionError:
-        raise  # Will trigger retry
-    except Exception as e:
-        # Log unexpected errors
-        logger.error(f"Unexpected error: {e}")
-        raise  # Re-raise for Prefect to handle
-\end{lstlisting}
+Prefect tasks are configured with automatic retry logic to handle transient failures. Network timeouts and connection errors automatically retry up to 3 times with exponential backoff (increasing delays of 30, 60, 120 seconds). Model training tasks retry twice specifically to recover from out-of-memory errors. Each retry includes jitter (random 0-10 second delay) to avoid thundering herd problems. Tasks have configurable timeouts: data fetching has a 5-minute timeout, while training has a 30-minute timeout to accommodate longer computations.
 
 \subsection{Exception Handling}
 
-\begin{table}[H]
-\centering
-\caption{Exception Handling Strategy}
-\begin{tabularx}{\textwidth}{lXc}
-\toprule
-\textbf{Exception} & \textbf{Action} & \textbf{Retries} \\
-\midrule
-Connection Error & Retry with backoff & 3 \\
-Timeout & Retry with delay & 3 \\
-OOM Error & Retry with smaller batch & 2 \\
-Data Validation Error & Fail immediately & 0 \\
-Model Training Error & Retry once & 1 \\
-\bottomrule
-\end{tabularx}
-\end{table}
+Connection errors, timeouts, and temporary network failures trigger automatic retries. Out-of-memory errors during model training trigger a retry with reduced batch size or fewer trees. Data validation errors (empty dataframe, missing critical columns) fail immediately without retries since retrying won't fix data issues. Model training errors retry once; if the second attempt also fails, the task is marked as failed and logged for investigation. All exceptions are logged with timestamps, stack traces, and context for debugging.
 
 \section{Deployment Configuration}
 
-\subsection{Deployment Manifest}
+\subsection{Deployment Modes}
 
-\begin{lstlisting}[language=yaml, caption={Prefect Deployment Config}]
-deployments:
-  - name: bitcoin-ml-daily
-    flow_name: bitcoin-ml-pipeline
-    schedule:
-      cron: '0 2 * * *'  # Daily at 2 AM UTC
-    parameters:
-      data_path: data/raw/bitcoin_timeseries.csv
-    work_queue: default
-    tags:
-      - production
-      - daily
-    description: Daily model retraining with latest Bitcoin data
-    
-  - name: bitcoin-ml-manual
-    flow_name: bitcoin-ml-pipeline
-    schedule: null  # Manual trigger only
-    parameters:
-      data_path: data/raw/bitcoin_timeseries.csv
-    work_queue: default
-    tags:
-      - manual
-    description: Manual model training execution
-\end{lstlisting}
+The pipeline can run in three ways. \textbf{Local Execution} runs the Python script directly for development and testing, useful for quick iteration and debugging. \textbf{Prefect Server Mode} starts a local Prefect server that provides a web UI for monitoring, scheduling, and triggering runs. This mode supports cron-based scheduling and is suitable for small-scale production deployments. \textbf{Prefect Cloud Mode} uses Prefect's managed cloud service with advanced features like distributed execution, better scalability, and integration with other platforms.
 
-\subsection{Execution Modes}
+\subsection{Daily Schedule}
 
-\subsubsection{Mode 1: Local Execution}
-\begin{lstlisting}[language=bash]
-python prefect/flows/ml_pipeline.py
-\end{lstlisting}
+The deployment is configured to run daily at 2:00 AM UTC to retrain models with the most recent Bitcoin data. This time window ensures Bitcoin market volatility is captured across all major trading sessions (Asia, Europe, America). The cron schedule `0 2 * * *` triggers at exactly 02:00 UTC every day, making versioned models available by 02:20 AM UTC. The job is tagged with "production" and "daily" for easy identification and filtering in logs and dashboards.
 
-\subsubsection{Mode 2: Prefect Server}
-\begin{lstlisting}[language=bash]
-# Start Prefect server
-prefect server start
+\subsection{Manual Trigger}
 
-# Deploy flow
-prefect deployment build prefect/flows/ml_pipeline.py:ml_training_flow -n bitcoin-ml-daily
-
-# Execute via server
-prefect deployment run bitcoin-ml-pipeline/bitcoin-ml-daily
-\end{lstlisting}
-
-\subsubsection{Mode 3: Prefect Cloud}
-\begin{lstlisting}[language=bash]
-# Authenticate with Prefect Cloud
-prefect cloud login
-
-# Deploy to cloud
-prefect deployment push prefect/flows/ml_pipeline.py:ml_training_flow -n bitcoin-ml-daily
-
-# Trigger from cloud
-prefect deployment run bitcoin-ml-pipeline/bitcoin-ml-daily
-\end{lstlisting}
+A second deployment configuration allows manual triggering of the pipeline at any time. This is useful for immediate retraining after significant market events, bug fixes, or when adding new models. Manual runs use the same code but bypass the schedule, allowing operators to trigger training on-demand from the Prefect UI or CLI.
 
 \section{Monitoring \& Observability}
 
 \subsection{Flow Runs Dashboard}
 
-Prefect Server provides a web UI showing:
-\begin{itemize}
-    \item Flow run history
-    \item Task execution status
-    \item Execution logs
-    \item Performance metrics
-\end{itemize}
+The Prefect Server provides a web user interface at \texttt{http://localhost:4200} showing comprehensive pipeline information. The dashboard displays flow run history with execution status (success/failed/running), task execution status for each run showing which tasks completed and which failed, complete execution logs for debugging, and performance metrics like task duration and resource usage.
 
 \subsection{Logging}
 
-\begin{lstlisting}[language=Python, caption={Structured Logging}]
-from prefect import get_run_logger
-
-@task
-def my_task():
-    logger = get_run_logger()
-    logger.info("Task started")
-    logger.debug(f"Processing {n} records")
-    logger.warning("Potential issue detected")
-    logger.error("Error occurred")
-\end{lstlisting}
+Prefect uses structured logging where each task automatically logs its start, progress, and completion. Debug logs capture intermediate values (number of records processed, feature shapes). Warning logs alert to potential issues (missing values encountered, performance below baseline). Error logs capture failures (connection timeouts, model training errors) with full stack traces. All logs are timestamped and associated with specific flow runs and tasks for traceability.
 
 \subsection{Notifications}
 
-Prefect can send notifications on:
-\begin{itemize}
-    \item Flow completion
-    \item Task failures
-    \item SLA violations
-    \item Custom events
-\end{itemize}
+Prefect can send notifications when flows complete successfully, when tasks fail, when SLA violations occur (e.g., execution time exceeds threshold), and on custom events. Notifications are typically sent to Discord webhooks so the team receives immediate alerts about pipeline status.
 
 \section{Performance Characteristics}
 

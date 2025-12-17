@@ -7,45 +7,7 @@ The Bitcoin ML Pipeline implements a complete Continuous Integration/Continuous 
 
 \section{CI/CD Architecture}
 
-\begin{figure}[H]
-\centering
-\begin{tikzpicture}[scale=0.85, node distance=2.5cm]
-    \node[draw, fill=gray!30, minimum width=2.5cm, minimum height=0.8cm] (git) at (0, 10) {Git Event};
-    
-    \node[draw, fill=blue!30, minimum width=2.5cm, minimum height=0.8cm] (ci) at (-4, 8) {CI Pipeline};
-    \node[draw, fill=green!30, minimum width=2.5cm, minimum height=0.8cm] (ml_tests) at (0, 8) {ML Tests};
-    \node[draw, fill=orange!30, minimum width=2.5cm, minimum height=0.8cm] (cd) at (4, 8) {CD Pipeline};
-    
-    \node[draw, fill=blue!20, minimum width=2cm, minimum height=0.6cm] (qa) at (-4, 6) {Code Quality};
-    \node[draw, fill=blue!20, minimum width=2cm, minimum height=0.6cm] (tests) at (-4, 5) {Unit Tests};
-    \node[draw, fill=green!20, minimum width=2cm, minimum height=0.6cm] (data) at (0, 6) {Data Checks};
-    \node[draw, fill=green!20, minimum width=2cm, minimum height=0.6cm] (features) at (0, 5) {Feature Tests};
-    \node[draw, fill=orange!20, minimum width=2cm, minimum height=0.6cm] (build) at (4, 6) {Build Image};
-    \node[draw, fill=orange!20, minimum width=2cm, minimum height=0.6cm] (train) at (4, 5) {Train Model};
-    
-    \node[draw, fill=red!30, minimum width=3cm, minimum height=0.8cm] (merge) at (0, 2) {✅ Merge to Main};
-    
-    \draw[->] (git) -- (ci);
-    \draw[->] (git) -- (ml_tests);
-    \draw[->] (git) -- (cd);
-    
-    \draw[->] (ci) -- (qa);
-    \draw[->] (ci) -- (tests);
-    \draw[->] (ml_tests) -- (data);
-    \draw[->] (ml_tests) -- (features);
-    \draw[->] (cd) -- (build);
-    \draw[->] (cd) -- (train);
-    
-    \draw[->] (qa) -- (merge);
-    \draw[->] (tests) -- (merge);
-    \draw[->] (data) -- (merge);
-    \draw[->] (features) -- (merge);
-    \draw[->] (build) -- (merge);
-    \draw[->] (train) -- (merge);
-\end{tikzpicture}
-\caption{CI/CD Pipeline Architecture}
-\label{fig:cicd_architecture}
-\end{figure}
+The CI/CD pipeline follows a three-branch parallel model triggered by Git events. When code is pushed to the `main` or `develop` branches, three independent pipelines execute simultaneously: the CI pipeline runs code quality checks and unit tests, the ML tests pipeline validates data integrity and feature engineering, and the CD pipeline builds Docker images and trains models. All three branches must pass before allowing a merge to the main branch. This parallel execution reduces total feedback time from ~30 minutes to ~15 minutes.
 
 \section{Workflow Details}
 
@@ -53,58 +15,15 @@ The Bitcoin ML Pipeline implements a complete Continuous Integration/Continuous 
 
 \textbf{Trigger:} Push or Pull Request to `main` or `develop`
 
-\subsubsection{Jobs}
+\textbf{Job 1: Code Quality} runs Black, isort, Flake8, and Pylint on all Python files to enforce consistent code style and detect issues. Takes ~1-2 minutes and blocks merges if violations are found.
 
-\textbf{Job 1: Code Quality}
-\begin{itemize}
-    \item \textbf{Purpose:} Enforce coding standards
-    \item \textbf{Tools:}
-    \begin{itemize}
-        \item \textbf{Black:} Code formatting (Python style)
-        \item \textbf{isort:} Import sorting
-        \item \textbf{Flake8:} PEP 8 linting
-        \item \textbf{Pylint:} Code complexity analysis
-    \end{itemize}
-    \item \textbf{Duration:} ~1-2 minutes
-    \item \textbf{Failure Action:} Block merge if checks fail
-\end{itemize}
+\textbf{Job 2: Unit Tests} executes 50+ pytest tests across Python 3.10 and 3.11 with >70% code coverage. Takes ~2-3 minutes and validates all core logic.
 
-\textbf{Job 2: Unit Tests}
-\begin{itemize}
-    \item \textbf{Purpose:} Validate code logic
-    \item \textbf{Framework:} pytest with coverage reporting
-    \item \textbf{Python Versions:} 3.10, 3.11
-    \item \textbf{Tests:} 50+ unit tests
-    \item \textbf{Coverage Threshold:} > 70\%
-    \item \textbf{Duration:} ~2-3 minutes
-\end{itemize}
+\textbf{Job 3: Data Validation} checks CSV format, row/column counts, missing values, and data types to ensure incoming Bitcoin data is valid. Takes ~30 seconds.
 
-\textbf{Job 3: Data Validation}
-\begin{itemize}
-    \item \textbf{Purpose:} Ensure data integrity
-    \item \textbf{Checks:}
-    \begin{itemize}
-        \item CSV format validation
-        \item Row/column count verification
-        \item Missing value detection
-        \item Data type validation
-    \end{itemize}
-    \item \textbf{Duration:} ~30 seconds
-\end{itemize}
+\textbf{Job 4: API Integration Tests} verifies API startup, endpoint availability, and response schema validation. Takes ~2-3 minutes.
 
-\textbf{Job 4: API Integration Tests}
-\begin{itemize}
-    \item \textbf{Purpose:} Test API endpoints
-    \item \textbf{Tests:}
-    \begin{itemize}
-        \item API startup
-        \item Endpoint availability
-        \item Response schema validation
-    \end{itemize}
-    \item \textbf{Duration:} ~2-3 minutes
-\end{itemize}
-
-\textbf{Total CI Duration:} \textbf{~5-10 minutes}
+\textbf{Total CI Duration:} ~5-10 minutes with parallel execution.
 
 \subsection{2. ML Tests Pipeline (.github/workflows/ml-tests.yml)}
 
@@ -112,59 +31,15 @@ The Bitcoin ML Pipeline implements a complete Continuous Integration/Continuous 
 
 \textbf{Purpose:} Validate ML-specific components
 
-\subsubsection{Jobs}
+\textbf{Job 1: Data Checks} fetches the latest Bitcoin data from CoinGecko API, validates data quality, checks date ranges, and verifies no missing values in critical columns. Takes ~2-3 minutes.
 
-\textbf{Job 1: Data Checks}
-\begin{itemize}
-    \item Fetch Bitcoin data from CoinGecko API
-    \item Validate data quality
-    \item Check date range
-    \item Verify no missing values in critical columns
-    \item Duration: ~2-3 minutes
-\end{itemize}
+\textbf{Job 2: Feature Engineering Tests} loads raw Bitcoin data, computes all 49 technical indicators, validates feature count, checks for NaN values, and verifies no data leakage occurs. Takes ~2 minutes.
 
-\begin{lstlisting}[language=python, caption={Data Validation Logic}]
-# Fetch data
-url = 'https://api.coingecko.com/api/v3/coins/bitcoin/market_chart'
-params = {'vs_currency': 'usd', 'days': '365'}
-response = requests.get(url, params=params)
-data = response.json()
+\textbf{Job 3: Model Tests} trains all 11 models (5 classification, 5 regression, Prophet), validates output shapes, and ensures all models can make predictions on test data. Takes ~10-12 minutes.
 
-# Validate
-assert len(data['prices']) > 0, "No data received"
-assert all(p[0] > 0 and p[1] > 0 for p in data['prices']), \
-    "Invalid prices"
-print(f"✓ Validated {len(data['prices'])} records")
-\end{lstlisting}
+\textbf{Job 4: Regression Tests} runs the full test suite to verify reproducibility and ensures no regressions in model metrics compared to baseline. Takes ~3 minutes.
 
-\textbf{Job 2: Feature Engineering Tests}
-\begin{itemize}
-    \item Load raw Bitcoin data
-    \item Compute technical indicators
-    \item Validate feature count (24 expected)
-    \item Check for NaN values
-    \item Verify no data leakage
-    \item Duration: ~2 minutes
-\end{itemize}
-
-\textbf{Job 3: Model Tests}
-\begin{itemize}
-    \item Train RandomForest model
-    \item Train XGBoost model
-    \item Validate output shapes
-    \item Check model can make predictions
-    \item Duration: ~5 minutes
-\end{itemize}
-
-\textbf{Job 4: Regression Tests}
-\begin{itemize}
-    \item Run full test suite
-    \item Verify reproducibility
-    \item Check no regressions in metrics
-    \item Duration: ~3 minutes
-\end{itemize}
-
-\textbf{Total ML Tests Duration:} \textbf{~10-15 minutes}
+\textbf{Total ML Tests Duration:} ~10-15 minutes.
 
 \subsection{3. CD Pipeline (.github/workflows/cd.yml)}
 
@@ -172,138 +47,31 @@ print(f"✓ Validated {len(data['prices'])} records")
 
 \textbf{Purpose:} Automatically build, train, and deploy
 
-\subsubsection{Jobs}
+\textbf{Job 1: Build Docker Images} builds API and Dashboard images, then pushes them to Docker Hub or Google Container Registry (GCR). Takes ~5-8 minutes.
 
-\textbf{Job 1: Build Docker Images}
-\begin{itemize}
-    \item Build API image
-    \item Build Dashboard image
-    \item Push to container registry (Docker Hub / GCR)
-    \item Duration: ~5-8 minutes
-\end{itemize}
+\textbf{Job 2: Train Models} fetches the latest Bitcoin data, trains classification and regression models, evaluates them on test data, and versions them in the model registry. Takes ~10-15 minutes and represents the most computationally intensive step.
 
-\textbf{Job 2: Train Models}
-\begin{itemize}
-    \item Fetch latest Bitcoin data
-    \item Train classification model
-    \item Train regression model
-    \item Evaluate on test set
-    \item Version models in registry
-    \item Duration: ~10-15 minutes
-\end{itemize}
+\textbf{Job 3: Validation} checks that model metrics meet thresholds, compares performance with the previous baseline, and detects any sudden performance degradation. Takes ~2 minutes.
 
-\textbf{Job 3: Validation}
-\begin{itemize}
-    \item Check model metrics
-    \item Compare with baseline
-    \item Detect performance degradation
-    \item Duration: ~2 minutes
-\end{itemize}
+\textbf{Job 4: Deployment} deploys the new images to Google Cloud Run or GKE, updates DNS records, and runs smoke tests to verify the deployment succeeded. Takes ~5 minutes.
 
-\textbf{Job 4: Deployment}
-\begin{itemize}
-    \item Deploy to Google Cloud Run (or GKE)
-    \item Update DNS records
-    \item Smoke tests
-    \item Duration: ~5 minutes
-\end{itemize}
-
-\textbf{Total CD Duration:} \textbf{~20-30 minutes}
+\textbf{Total CD Duration:} ~20-30 minutes.
 
 \subsection{4. Scheduled Training (.github/workflows/scheduled-training.yml)}
 
-\textbf{Trigger:} Cron schedule (daily @ 2 AM UTC)
+\textbf{Trigger:} Cron schedule runs daily at 2 AM UTC to retrain models with the most recent Bitcoin data. 
 
-\textbf{Purpose:} Retrain models with fresh data
-
-\subsubsection{Schedule}
-\begin{lstlisting}[language=yaml]
-schedule:
-  - cron: '0 2 * * *'  # Every day at 2 AM UTC
-\end{lstlisting}
-
-\subsubsection{Steps}
-\begin{enumerate}
-    \item Fetch latest Bitcoin data (24 hours)
-    \item Validate data quality
-    \item Engineer features
-    \item Train all models
-    \item Evaluate performance
-    \item Detect data drift
-    \item Check model drift
-    \item Version new models
-    \item Update active version
-    \item Send Discord notification
-\end{enumerate}
-
-\textbf{Duration:} ~15-20 minutes
+\textbf{Steps:} The workflow fetches the latest 24 hours of Bitcoin data, validates data quality, engineers all 49 technical indicators, trains classification and regression models, evaluates performance on the test set, detects data drift and model drift, versions new models with a timestamp, updates the active model version in the registry, and sends a Discord notification with training results. Takes ~15-20 minutes total.
 
 \subsection{5. Hourly Feature Updates (.github/workflows/hourly-features.yml)}
 
-\textbf{Trigger:} Cron schedule (every hour at minute 0)
+\textbf{Trigger:} Cron schedule runs every hour at minute 0 to keep technical indicators fresh.
 
-\textbf{Purpose:} Keep features fresh
+\textbf{Steps:} The workflow fetches the latest Bitcoin data (hourly interval), computes all 49 technical indicators from the rolling window, saves features to CSV format, and uploads the features as a GitHub Actions artifact with 7-day retention policy for potential analysis. Takes ~3-5 minutes per execution.
 
-\subsubsection{Schedule}
-\begin{lstlisting}[language=yaml]
-schedule:
-  - cron: '0 * * * *'  # Every hour
-\end{lstlisting}
+\section{CI/CD Pipeline Flow}
 
-\subsubsection{Steps}
-\begin{enumerate}
-    \item Fetch latest Bitcoin data (hourly)
-    \item Compute technical indicators
-    \item Save features to CSV
-    \item Upload as artifact (7-day retention)
-\end{enumerate}
-
-\textbf{Duration:} ~3-5 minutes
-
-\section{CI/CD Pipeline Flow Diagram}
-
-\begin{figure}[H]
-\centering
-\begin{tikzpicture}[scale=0.8, node distance=2.2cm]
-    \node[draw, fill=gray!30, rounded rectangle, minimum width=2.5cm, minimum height=0.8cm] (event) at (4, 14) {Git Event};
-    
-    % CI Branch
-    \node[draw, fill=blue!30, minimum width=2.5cm, minimum height=0.7cm] (ci1) at (0, 12) {Code Quality};
-    \node[draw, fill=blue!30, minimum width=2.5cm, minimum height=0.7cm] (ci2) at (0, 10.5) {Unit Tests};
-    \node[draw, fill=blue!30, minimum width=2.5cm, minimum height=0.7cm] (ci3) at (0, 9) {Data Checks};
-    
-    % ML Branch
-    \node[draw, fill=green!30, minimum width=2.5cm, minimum height=0.7cm] (ml1) at (4, 12) {Data Validation};
-    \node[draw, fill=green!30, minimum width=2.5cm, minimum height=0.7cm] (ml2) at (4, 10.5) {Feature Tests};
-    \node[draw, fill=green!30, minimum width=2.5cm, minimum height=0.7cm] (ml3) at (4, 9) {Model Tests};
-    
-    % CD Branch
-    \node[draw, fill=orange!30, minimum width=2.5cm, minimum height=0.7cm] (cd1) at (8, 12) {Build Docker};
-    \node[draw, fill=orange!30, minimum width=2.5cm, minimum height=0.7cm] (cd2) at (8, 10.5) {Train Models};
-    \node[draw, fill=orange!30, minimum width=2.5cm, minimum height=0.7cm] (cd3) at (8, 9) {Deploy};
-    
-    % Final
-    \node[draw, fill=red!30, rounded rectangle, minimum width=3.5cm, minimum height=1cm] (final) at (4, 6.5) {✅ Production\\Models Updated};
-    
-    % Connections
-    \draw[->] (event) -- (ci1);
-    \draw[->] (event) -- (ml1);
-    \draw[->] (event) -- (cd1);
-    
-    \draw[->] (ci1) -- (ci2);
-    \draw[->] (ci2) -- (ci3);
-    \draw[->] (ml1) -- (ml2);
-    \draw[->] (ml2) -- (ml3);
-    \draw[->] (cd1) -- (cd2);
-    \draw[->] (cd2) -- (cd3);
-    
-    \draw[->] (ci3) -- (final);
-    \draw[->] (ml3) -- (final);
-    \draw[->] (cd3) -- (final);
-\end{tikzpicture}
-\caption{Complete CI/CD Pipeline Execution Flow}
-\label{fig:cicd_flow}
-\end{figure}
+When code is pushed to the repository, GitHub Actions triggers three independent pipelines in parallel. The CI pipeline (blue branch) runs code formatting, import sorting, linting, and 50+ unit tests. The ML Tests pipeline (green branch) validates Bitcoin data from the API, tests feature engineering with all 49 indicators, trains RandomForest and XGBoost models to verify training works, and runs regression tests to ensure metrics haven't degraded. The CD pipeline (orange branch) builds and pushes Docker images to the container registry and trains new models for deployment. Once all three pipelines complete successfully, the code is automatically merged to the main branch, and the new API and Dashboard images are deployed to production. This parallel execution completes in approximately 20-30 minutes total.
 
 \section{Status Checks \& Gating}
 
@@ -355,37 +123,7 @@ Metrics history & 90 days & Long-term trends \\
 
 \subsection{Discord Webhooks}
 
-All pipeline events trigger Discord notifications:
-
-\begin{itemize}
-    \item ✅ \textbf{Success}: "Training complete! New model v20251205T052715Z deployed"
-    \item ❌ \textbf{Failure}: "Training failed: OOM error in model training"
-    \item ⏱️ \textbf{Scheduled}: "Daily training started at 02:00 UTC"
-    \item 📊 \textbf{Metrics}: "Classification accuracy: 70.0\%, Regression R²: 0.128"
-\end{itemize}
-
-\begin{lstlisting}[language=json, caption={Discord Webhook Payload}]
-{
-  "embeds": [{
-    "title": "Bitcoin ML Training",
-    "description": "Daily training completed successfully",
-    "color": 3066993,
-    "fields": [
-      {
-        "name": "Classification Accuracy",
-        "value": "70.0%",
-        "inline": true
-      },
-      {
-        "name": "Regression R²",
-        "value": "0.128",
-        "inline": true
-      }
-    ],
-    "timestamp": "2025-12-10T02:30:00Z"
-  }]
-}
-\end{lstlisting}
+All pipeline events trigger Discord notifications to a configured webhook channel. Success messages announce "Training complete! New model v20251205T052715Z deployed". Failure messages show specific errors like "Training failed: OOM error in model training". Scheduled event messages indicate "Daily training started at 02:00 UTC". Metrics messages display results like "Classification accuracy: 70.0\%, Regression R²: 0.128". This real-time alerting ensures the team immediately knows about successful completions, unexpected failures, or performance issues.
 
 \section{Performance Metrics}
 

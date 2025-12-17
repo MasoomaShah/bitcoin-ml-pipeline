@@ -592,15 +592,31 @@ def train_classification_model(
         try:
             from tensorflow.keras.callbacks import EarlyStopping
             
+            # Convert to DataFrame if needed for .iloc indexing
+            if not isinstance(X_train, pd.DataFrame):
+                X_train_df = pd.DataFrame(X_train)
+                X_test_df = pd.DataFrame(X_test)
+            else:
+                X_train_df = X_train
+                X_test_df = X_test
+            
+            # Convert Series to Series if needed
+            if not isinstance(y_train, pd.Series):
+                y_train_series = pd.Series(y_train)
+                y_test_series = pd.Series(y_test)
+            else:
+                y_train_series = y_train
+                y_test_series = y_test
+            
             # Prepare sequences for LSTM (lookback=7 days)
             lookback = 7
-            X_train_seq = np.array([X_train.iloc[i:i+lookback].values for i in range(len(X_train)-lookback)])
-            y_train_seq = y_train.iloc[lookback:].values
-            X_test_seq = np.array([X_test.iloc[i:i+lookback].values for i in range(len(X_test)-lookback)])
-            y_test_seq = y_test.iloc[lookback:].values
+            X_train_seq = np.array([X_train_df.iloc[i:i+lookback].values for i in range(len(X_train_df)-lookback)])
+            y_train_seq = y_train_series.iloc[lookback:].values
+            X_test_seq = np.array([X_test_df.iloc[i:i+lookback].values for i in range(len(X_test_df)-lookback)])
+            y_test_seq = y_test_series.iloc[lookback:].values
             
             lstm_clf = Sequential([
-                LSTM(64, return_sequences=True, input_shape=(lookback, X_train.shape[1])),
+                LSTM(64, return_sequences=True, input_shape=(lookback, X_train_df.shape[1])),
                 Dropout(0.2),
                 LSTM(32),
                 Dropout(0.2),
@@ -628,14 +644,30 @@ def train_classification_model(
         try:
             from tensorflow.keras.callbacks import EarlyStopping
             
+            # Convert to DataFrame if needed for .iloc indexing
+            if not isinstance(X_train, pd.DataFrame):
+                X_train_df = pd.DataFrame(X_train)
+                X_test_df = pd.DataFrame(X_test)
+            else:
+                X_train_df = X_train
+                X_test_df = X_test
+            
+            # Convert Series to Series if needed
+            if not isinstance(y_train, pd.Series):
+                y_train_series = pd.Series(y_train)
+                y_test_series = pd.Series(y_test)
+            else:
+                y_train_series = y_train
+                y_test_series = y_test
+            
             lookback = 7
-            X_train_seq = np.array([X_train.iloc[i:i+lookback].values for i in range(len(X_train)-lookback)])
-            y_train_seq = y_train.iloc[lookback:].values
-            X_test_seq = np.array([X_test.iloc[i:i+lookback].values for i in range(len(X_test)-lookback)])
-            y_test_seq = y_test.iloc[lookback:].values
+            X_train_seq = np.array([X_train_df.iloc[i:i+lookback].values for i in range(len(X_train_df)-lookback)])
+            y_train_seq = y_train_series.iloc[lookback:].values
+            X_test_seq = np.array([X_test_df.iloc[i:i+lookback].values for i in range(len(X_test_df)-lookback)])
+            y_test_seq = y_test_series.iloc[lookback:].values
             
             gru_clf = Sequential([
-                GRU(64, return_sequences=True, input_shape=(lookback, X_train.shape[1])),
+                GRU(64, return_sequences=True, input_shape=(lookback, X_train_df.shape[1])),
                 Dropout(0.2),
                 GRU(32),
                 Dropout(0.2),
@@ -682,23 +714,51 @@ def train_classification_model(
 def evaluate_regression_model(
     model: RandomForestRegressor,
     X_test: pd.DataFrame,
-    y_test: pd.Series
+    y_test: pd.Series,
+    model_name: str = "RandomForest"
 ) -> Dict:
     """Evaluate regression model and return metrics."""
     print(f"\n{'='*60}")
     print("STEP 5A: EVALUATE REGRESSION MODEL")
     print(f"{'='*60}")
     
-    y_pred = model.predict(X_test)
+    # Handle LSTM/GRU models which need 3D sequences
+    if model_name in ['LSTM', 'GRU']:
+        try:
+            # Reshape 2D X_test to 3D for LSTM/GRU
+            lookback = 7
+            if isinstance(X_test, pd.DataFrame):
+                X_test_2d = X_test.values
+            else:
+                X_test_2d = X_test
+            
+            # Create sequences (same logic as training)
+            X_test_seq = np.array([X_test_2d[i:i+lookback] for i in range(len(X_test_2d)-lookback)])
+            if isinstance(y_test, pd.Series):
+                y_test_seq = y_test.iloc[lookback:].values
+            else:
+                y_test_seq = y_test[lookback:]
+            
+            y_pred = model.predict(X_test_seq, verbose=0).flatten()
+            y_test_eval = y_test_seq
+        except Exception as e:
+            print(f"Warning: Could not create sequences for {model_name}: {e}")
+            print("Falling back to direct prediction...")
+            y_pred = model.predict(X_test)
+            y_test_eval = y_test
+    else:
+        # Traditional models use 2D input
+        y_pred = model.predict(X_test)
+        y_test_eval = y_test
     
     # Calculate RMSE using sqrt(MSE) for compatibility
-    mse = mean_squared_error(y_test, y_pred)
+    mse = mean_squared_error(y_test_eval, y_pred)
     rmse = np.sqrt(mse)
     
     metrics = {
         'rmse': float(rmse),
-        'r2': float(r2_score(y_test, y_pred)),
-        'test_samples': len(y_test)
+        'r2': float(r2_score(y_test_eval, y_pred)),
+        'test_samples': len(y_test_eval)
     }
     
     print(f"✓ Regression evaluation complete")
@@ -712,19 +772,47 @@ def evaluate_regression_model(
 def evaluate_classification_model(
     model: RandomForestClassifier,
     X_test: pd.DataFrame,
-    y_test: pd.Series
+    y_test: pd.Series,
+    model_name: str = "RandomForest"
 ) -> Dict:
     """Evaluate classification model and return metrics."""
     print(f"\n{'='*60}")
     print("STEP 5B: EVALUATE CLASSIFICATION MODEL")
     print(f"{'='*60}")
     
-    y_pred = model.predict(X_test)
+    # Handle LSTM/GRU models which need 3D sequences
+    if model_name in ['LSTM', 'GRU']:
+        try:
+            # Reshape 2D X_test to 3D for LSTM/GRU
+            lookback = 7
+            if isinstance(X_test, pd.DataFrame):
+                X_test_2d = X_test.values
+            else:
+                X_test_2d = X_test
+            
+            # Create sequences (same logic as training)
+            X_test_seq = np.array([X_test_2d[i:i+lookback] for i in range(len(X_test_2d)-lookback)])
+            if isinstance(y_test, pd.Series):
+                y_test_seq = y_test.iloc[lookback:].values
+            else:
+                y_test_seq = y_test[lookback:]
+            
+            y_pred = (model.predict(X_test_seq, verbose=0) > 0.5).astype(int).flatten()
+            y_test_eval = y_test_seq
+        except Exception as e:
+            print(f"Warning: Could not create sequences for {model_name}: {e}")
+            print("Falling back to direct prediction...")
+            y_pred = model.predict(X_test)
+            y_test_eval = y_test
+    else:
+        # Traditional models use 2D input
+        y_pred = model.predict(X_test)
+        y_test_eval = y_test
     
     metrics = {
-        'accuracy': float(accuracy_score(y_test, y_pred)),
-        'f1_score': float(f1_score(y_test, y_pred, average='weighted')),
-        'test_samples': len(y_test)
+        'accuracy': float(accuracy_score(y_test_eval, y_pred)),
+        'f1_score': float(f1_score(y_test_eval, y_pred, average='weighted')),
+        'test_samples': len(y_test_eval)
     }
     
     print(f"✓ Classification evaluation complete")
@@ -1123,8 +1211,8 @@ def ml_training_pipeline(
         clf_model, clf_model_name = train_classification_model(X_train, y_clf_train, X_test, y_clf_test, clf_hyperparams)
         
         # Step 5: Model Evaluation (concurrent)
-        reg_metrics = evaluate_regression_model(reg_model, X_test, y_reg_test)
-        clf_metrics = evaluate_classification_model(clf_model, X_test, y_clf_test)
+        reg_metrics = evaluate_regression_model(reg_model, X_test, y_reg_test, model_name=reg_model_name)
+        clf_metrics = evaluate_classification_model(clf_model, X_test, y_clf_test, model_name=clf_model_name)
         
         # Step 6: Save and Version Models
         version_info = save_and_version_models(
