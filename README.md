@@ -16,16 +16,16 @@ A production-ready machine learning pipeline for Bitcoin price forecasting with 
 
 ## Architecture Highlights
 
-✅ **14+ ML Models** tested across 4 paradigms (Traditional ML, Ensemble, Deep Learning, Time-Series)  
-✅ **24 Technical Indicators** automatically computed for feature engineering  
-✅ **5 GitHub Actions Workflows** for CI/CD automation  
-✅ **Prefect 2.0** for orchestration with 8-task DAG  
-✅ **Docker Containerization** with multi-stage builds (480MB final image)  
-✅ **Production APIs** (FastAPI classification/regression endpoints)  
-✅ **Streamlit Dashboard** for interactive visualization  
-✅ **SHAP/LIME** model explainability integration  
-✅ **Discord Notifications** for pipeline alerts  
-✅ **Vertex AI Integration** (Model Registry + Feature Store capable)
+**14+ ML Models** tested across 4 paradigms (Traditional ML, Ensemble, Deep Learning, Time-Series)  
+**24 Technical Indicators** automatically computed for feature engineering  
+**5 GitHub Actions Workflows** for CI/CD automation  
+**Prefect 2.0** for orchestration with 8-task DAG  
+**Docker Containerization** with multi-stage builds (480MB final image)  
+**Production APIs** (FastAPI classification/regression endpoints)  
+**Streamlit Dashboard** for interactive visualization  
+**SHAP/LIME** model explainability integration  
+**Discord Notifications** for pipeline alerts  
+**Vertex AI Integration** (Model Registry + Feature Store capable)
 
 ## Cloud Infrastructure - Vertex AI
 
@@ -45,9 +45,9 @@ This project is designed to integrate with **Google Cloud Vertex AI** for produc
 - **How to Use:** Call `src/vertex_ai_model_registry.py` after daily training
 
 ### Daily Model Training
-✅ **Runs successfully every day** at 2 AM UTC via GitHub Actions  
-✅ **Saves locally** to `models/v{timestamp}_*` files  
-⚠️ **NOT registered to Vertex AI** - would require modifying `prefect/flows/ml_pipeline.py` to call registration code
+**Runs successfully every day** at 2 AM UTC via GitHub Actions  
+**Saves locally** to `models/v{timestamp}_*` files  
+
 
 **Why Feature Store & Registry are empty:**
 1. Daily training runs via `test_prefect_pipeline.py` → `prefect/flows/ml_pipeline.py`
